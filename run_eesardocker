@@ -1,0 +1,4 @@
+#!/bin/bash
+docker stop eesar
+docker rm eesar
+docker run -d -p 443:8888  --name=eesar  mort/eesardocker

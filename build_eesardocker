@@ -1,0 +1,5 @@
+#!/bin/bash
+cd /home/mort/python/EESARDocker/src
+docker stop eesar
+docker rm eesar
+docker build -t mort/eesardocker .
