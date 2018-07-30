@@ -4,7 +4,7 @@
 FROM     debian:jessie  
 
 # arm (raspberry pi) architecture       
-#FROM     resin/rpi-raspbian 
+#FROM     resin/rpi-raspbian:jessie 
            
 MAINTAINER Mort Canty "mort.canty@gmail.com"
 ENV     REFRESHED_AT 2018-05-17
