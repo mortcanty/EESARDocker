@@ -3,13 +3,16 @@ Created on 21.06.2018
 
 @author: mort
 '''
-import ee, time
+import ee, time, warnings
 import ipywidgets as widgets
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,basemaps,basemap_to_tiles,SplitMapControl)
 from auxil.eeWishart import omnibus
 
 ee.Initialize()
+
+warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
 poly = ee.Geometry.Polygon([[6.30154, 50.948329], [6.293307, 50.877329], 
                             [6.427091, 50.875595], [6.417486, 50.947464], 
