@@ -205,8 +205,15 @@ w_preview.on_click(on_preview_button_clicked)
 
 def on_export_button_clicked(b):
     global w_exportname
+    point0 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(0))
+    point1 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(1))
+    point2 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(2))
+    point3 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(3))
     collection1 = ee.ImageCollection('COPERNICUS/S2') \
-                    .filterBounds(poly) \
+                    .filterBounds(point0) \
+                    .filterBounds(point1) \
+                    .filterBounds(point2) \
+                    .filterBounds(point3) \
                     .filterDate(ee.Date(w_startdate.value),ee.Date(w_enddate.value)) \
                     .sort('CLOUDY_PIXEL_PERCENTAGE',True) \
                     .filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',1.0) 

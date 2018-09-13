@@ -48,6 +48,7 @@ RUN     rm -rf auxil-1.0
 RUN     rm auxil-1.0.tar.gz
 
 COPY    interface.ipynb /home/interface.ipynb
+COPY    eesardocs.ipynb /home/eesardocs.ipynb
 
 # ipython notebook startup script
 COPY    notebook.sh /
