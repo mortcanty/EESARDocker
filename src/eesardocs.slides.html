@@ -11924,7 +11924,12 @@ a.anchor-link {
 <div class="text_cell_render border-box-sizing rendered_html">
 <h2 id="Software-Installation">Software Installation<a class="anchor-link" href="#Software-Installation">&#182;</a></h2><p>Pull and/or run the container with</p>
 
-<pre><code> docker run -d -p 443:8888 --name=eesar mort/eesardocker     
+<pre><code> docker run -d -p 443:8888 --name=eesar mort/eesardocker 
+
+</code></pre>
+<p>or, if you are on a Raspberry Pi,</p>
+
+<pre><code> docker run -d -p 443:8888 --name=eesar mort/rpi-eesardocker
 
 </code></pre>
 <p>Point your browser to <a href="http://localhost:443">http://localhost:443</a> to see the Jupyter notebook home page.</p>
@@ -12084,7 +12089,7 @@ $$</p>
 </div></section></section><section><section>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython2"><pre><span></span><span class="kn">from</span> <span class="nn">auxil.eeSar_seq</span> <span class="kn">import</span> <span class="n">run</span>
@@ -12092,57 +12097,6 @@ $$</p>
 </pre></div>
 
 </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-<div class="prompt"></div>
-
-
-
-
-
- 
- 
-<div id="5f9cf2c4-7f4d-4ddc-8b4e-4f76a3775853"></div>
-<div class="output_subarea output_widget_view ">
-<script type="text/javascript">
-var element = $('#5f9cf2c4-7f4d-4ddc-8b4e-4f76a3775853');
-</script>
-<script type="application/vnd.jupyter.widget-view+json">
-{"model_id": "e86b5687ab3744b982a53c61df4b41c6", "version_minor": 0, "version_major": 2}
-</script>
-</div>
-
-</div>
-
-<div class="output_area">
-
-<div class="prompt"></div>
-
-
-
-
-
- 
- 
-<div id="831a6be5-1b48-4024-a25e-2f39f1e5a760"></div>
-<div class="output_subarea output_widget_view ">
-<script type="text/javascript">
-var element = $('#831a6be5-1b48-4024-a25e-2f39f1e5a760');
-</script>
-<script type="application/vnd.jupyter.widget-view+json">
-{"model_id": "1f61f2f640ae4ac892a7be66c5489ded", "version_minor": 0, "version_major": 2}
-</script>
-</div>
-
-</div>
-
 </div>
 </div>
 

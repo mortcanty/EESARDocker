@@ -2,4 +2,4 @@
 cd /home/mort/python/EESARDocker/src
 docker stop eesar
 docker rm eesar
-docker build -t mort/eesardocker .
+docker build -f Dockerfile -t mort/eesardocker .

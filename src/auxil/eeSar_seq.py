@@ -17,6 +17,7 @@ warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 poly = ee.Geometry.Polygon([[6.30154, 50.948329], [6.293307, 50.877329], 
                             [6.427091, 50.875595], [6.417486, 50.947464], 
                             [6.30154, 50.948329]])
+
 center = list(reversed(poly.centroid().coordinates().getInfo()))
 
 def get_vvvh(image):
@@ -42,7 +43,7 @@ def handle_draw(self, action, geo_json):
         w_preview.disabled = True
         w_export.disabled = True
         
-dc = DrawControl()
+dc = DrawControl(polyline={},circle={})
 dc.on_draw(handle_draw)
 
 def GetTileLayerUrl(ee_image_object):
@@ -139,6 +140,7 @@ def on_run_button_clicked(b):
            w_startdate,w_enddate,w_orbitpass,w_changemap, \
            w_relativeorbitnumber,w_significance,w_median
     try:
+        w_text.value = 'running...'
         collection = ee.ImageCollection('COPERNICUS/S1_GRD_FLOAT') \
                   .filterBounds(poly) \
                   .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value)) \

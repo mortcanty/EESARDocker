@@ -42,7 +42,7 @@ def handle_draw(self, action, geo_json):
         w_preview.disabled = True
         w_export.disabled = True
         
-dc = DrawControl()
+dc = DrawControl(polyline={},circle={},circlemarker={})
 dc.on_draw(handle_draw)
 
 def GetTileLayerUrl(ee_image_object):
@@ -139,6 +139,7 @@ def on_run_button_clicked(b):
            w_startdate,w_enddate,w_orbitpass,w_changemap, \
            w_relativeorbitnumber,w_significance,w_median
     try:
+        w_text.value = 'running...'
         collection = ee.ImageCollection('COPERNICUS/S1_GRD_FLOAT') \
                   .filterBounds(poly) \
                   .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value)) \

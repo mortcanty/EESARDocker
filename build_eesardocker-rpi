@@ -1,0 +1,5 @@
+#!/bin/bash
+cd /home/pirate/python/EESARDocker/src
+docker stop eesar
+docker rm eesar
+docker build -f Dockerfile-rpi -t mort/eesardocker .
