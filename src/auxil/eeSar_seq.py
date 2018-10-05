@@ -110,7 +110,7 @@ w_opacity = widgets.BoundedFloatText(
 w_text = widgets.Textarea(
     value = 'Algorithm output',
     rows = 3,
-    disabled = True
+    disabled = False
 )
 
 w_run = widgets.Button(description="Run")

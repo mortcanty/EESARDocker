@@ -17,6 +17,7 @@ warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 poly = ee.Geometry.Polygon([[6.30154, 50.948329], [6.293307, 50.877329], 
                             [6.427091, 50.875595], [6.417486, 50.947464], 
                             [6.30154, 50.948329]])
+
 center = list(reversed(poly.centroid().coordinates().getInfo()))
 
 def get_vvvh(image):
@@ -42,7 +43,7 @@ def handle_draw(self, action, geo_json):
         w_preview.disabled = True
         w_export.disabled = True
         
-dc = DrawControl(polyline={},circle={},circlemarker={})
+dc = DrawControl(polyline={},circle={})
 dc.on_draw(handle_draw)
 
 def GetTileLayerUrl(ee_image_object):
@@ -109,7 +110,7 @@ w_opacity = widgets.BoundedFloatText(
 w_text = widgets.Textarea(
     value = 'Algorithm output',
     rows = 3,
-    disabled = True
+    disabled = False
 )
 
 w_run = widgets.Button(description="Run")
