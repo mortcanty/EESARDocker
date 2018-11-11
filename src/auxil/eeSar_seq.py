@@ -256,3 +256,4 @@ def run():
     m.add_control(sm_control)
     display(m)
     display(box)
+    
