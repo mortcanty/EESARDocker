@@ -165,10 +165,11 @@ def on_run_button_clicked(b):
         timestamplist = ['T20'+x[4:]+x[0:4] for x in timestamplist]
     #  in case of duplicates add running integer
         timestamplist1 = [timestamplist[i] + '_' + str(i+1) for i in range(len(timestamplist))]    
-        relativeorbitnumbers = str(map(int,ee.List(collection.aggregate_array('relativeOrbitNumber_start')).getInfo()))
+        relativeorbitnumbers = map(int,ee.List(collection.aggregate_array('relativeOrbitNumber_start')).getInfo())
+        rons = str(list(set(relativeorbitnumbers)))
         txt = 'Images found: %i \n'%count
         txt += 'Acquisition dates: '+timestamplist[0]+'...'+timestamplist[-1]+'\n'
-        txt += 'Relative orbit numbers: '+relativeorbitnumbers[0:20]+'...'
+        txt += 'Relative orbit numbers: '+rons
         w_text.value = txt
         pcollection = collection.map(get_vvvh)
         pList = pcollection.toList(100)   
@@ -256,3 +257,4 @@ def run():
     m.add_control(sm_control)
     display(m)
     display(box)
+    
