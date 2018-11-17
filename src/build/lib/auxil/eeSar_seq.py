@@ -26,9 +26,6 @@ def get_incidence_angle(image):
            .reduceRegion(ee.Reducer.mean(),geometry=poly,maxPixels= 1e9) \
            .get('angle') \
            .getInfo(),2)
-    
-    current = ee.Image(current).select('angle')
-    meana = current.reduceRegion(ee.Reducer.mean(),geometry=rect,maxPixels= 1e9).get('angle')
 
 def get_vvvh(image):
     ''' get 'VV' and 'VH' bands from sentinel-1 imageCollection '''
@@ -146,7 +143,7 @@ w_median.observe(on_widget_change,names='value')
 w_significance.observe(on_widget_change,names='value')
 
 def on_run_button_clicked(b):
-    global result,collection,count,timestamplist1, \
+    global result,m,collection,count,timestamplist1, \
            w_startdate,w_enddate,w_orbitpass,w_changemap, \
            w_relativeorbitnumber,w_significance,w_median
     try:
@@ -183,7 +180,7 @@ def on_run_button_clicked(b):
         if len(rons)==1:
             txt += 'Mean incidence angle: %f'%get_incidence_angle(collection.first())
         else:
-            txt +=  'Mean incidence angle: (select rel. orbit)'
+            txt +=  'Mean incidence angle: (select a rel. orbit)'
         w_text.value = txt
         pcollection = collection.map(get_vvvh)
         pList = pcollection.toList(100)   
@@ -191,6 +188,10 @@ def on_run_button_clicked(b):
         imList = ee.Dictionary(pList.iterate(clipList,first)).get('imlist')
         result = ee.Dictionary(omnibus(imList,w_significance.value,w_median.value))
         w_preview.disabled = False
+        mosaic = collection.mosaic()
+        if len(m.layers)>1:
+            m.remove_layer(m.layers[1])
+        m.add_layer(TileLayer(url=GetTileLayerUrl( mosaic.select(0).visualize(min=0, max=1.0,opacity = 1))))
     except Exception as e:
         w_text.value =  'Error: %s'%e
 
