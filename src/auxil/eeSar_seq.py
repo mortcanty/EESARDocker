@@ -20,6 +20,16 @@ poly = ee.Geometry.Polygon([[6.30154, 50.948329], [6.293307, 50.877329],
 
 center = list(reversed(poly.centroid().coordinates().getInfo()))
 
+def get_incidence_angle(image):
+    ''' grab the mean incidence angle '''
+    return round(ee.Image(image).select('angle') \
+           .reduceRegion(ee.Reducer.mean(),geometry=poly,maxPixels= 1e9) \
+           .get('angle') \
+           .getInfo(),2)
+    
+    current = ee.Image(current).select('angle')
+    meana = current.reduceRegion(ee.Reducer.mean(),geometry=rect,maxPixels= 1e9).get('angle')
+
 def get_vvvh(image):
     ''' get 'VV' and 'VH' bands from sentinel-1 imageCollection '''
     return image.select('VV','VH')
@@ -109,7 +119,7 @@ w_opacity = widgets.BoundedFloatText(
 
 w_text = widgets.Textarea(
     value = 'Algorithm output',
-    rows = 3,
+    rows = 4,
     disabled = False
 )
 
@@ -166,10 +176,14 @@ def on_run_button_clicked(b):
     #  in case of duplicates add running integer
         timestamplist1 = [timestamplist[i] + '_' + str(i+1) for i in range(len(timestamplist))]    
         relativeorbitnumbers = map(int,ee.List(collection.aggregate_array('relativeOrbitNumber_start')).getInfo())
-        rons = str(list(set(relativeorbitnumbers)))
+        rons = list(set(relativeorbitnumbers))
         txt = 'Images found: %i \n'%count
         txt += 'Acquisition dates: '+timestamplist[0]+'...'+timestamplist[-1]+'\n'
-        txt += 'Relative orbit numbers: '+rons
+        txt += 'Relative orbit numbers: '+str(rons)+'\n'
+        if len(rons)==1:
+            txt += 'Mean incidence angle: %f'%get_incidence_angle(collection.first())
+        else:
+            txt +=  'Mean incidence angle: (select a rel. orbit)'
         w_text.value = txt
         pcollection = collection.map(get_vvvh)
         pList = pcollection.toList(100)   
