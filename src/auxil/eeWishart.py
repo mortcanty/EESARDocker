@@ -50,7 +50,7 @@ def pv(imList,p,median,j):
 # (1.-omega2j)*stats.chi2.cdf(Z,[f])+omega2j*stats.chi2.cdf(Z,[f+4])                 
     P = ee.Image( chi2cdf(Z,f).multiply(one.subtract(omega2j)).add(chi2cdf(Z,f.add(4)).multiply(omega2j))  )
 # 3x3 median filter    
-    return ee.Algorithms.If(median, P.focal_median(), P)    
+    return ee.Algorithms.If(median, P.focal_median(2.5), P)    
 
 def js_iter(current,prev):
     j = ee.Number(current)

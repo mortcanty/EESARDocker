@@ -5,6 +5,7 @@ Created on 21.06.2018
 '''
 import ee, time, warnings
 import ipywidgets as widgets
+import numpy as np
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,basemaps,basemap_to_tiles,SplitMapControl)
 from auxil.eeWishart import omnibus
@@ -22,8 +23,16 @@ center = list(reversed(poly.centroid().coordinates().getInfo()))
 
 def get_incidence_angle(image):
     ''' grab the mean incidence angle '''
-    return round(ee.Image(image).select('angle') \
-           .reduceRegion(ee.Reducer.mean(),geometry=poly,maxPixels= 1e9) \
+    result = ee.Image(image).select('angle') \
+           .reduceRegion(ee.Reducer.mean(),geometry=poly,maxPixels=1e9) \
+           .get('angle') \
+           .getInfo()
+    if result is not None:
+        return round(result,2)
+    else:
+#      incomplete overlap        
+        return round(ee.Image(image).select('angle') \
+           .reduceRegion(ee.Reducer.mean(),maxPixels=1e9) \
            .get('angle') \
            .getInfo(),2)
 
@@ -70,6 +79,12 @@ w_changemap = widgets.RadioButtons(
     description='Change map:',
     disabled=False
 )
+w_platform = widgets.RadioButtons(
+    options=['Both','A','B'],
+     value='Both',
+    description='Platform:',
+    disabled=False
+)
 w_relativeorbitnumber = widgets.IntText(
     value=0,
     description='Rel orbit:',
@@ -94,7 +109,7 @@ w_enddate = widgets.Text(
 )
 w_median = widgets.Checkbox(
     value=True,
-    description='Median filter',
+    description='5x5 Median filter',
     disabled=False
 )
 w_significance = widgets.BoundedFloatText(
@@ -123,8 +138,8 @@ w_text = widgets.Textarea(
 w_run = widgets.Button(description="Run")
 w_preview = widgets.Button(description="Preview",disabled=True)
 w_export = widgets.Button(description='Export to assets',disabled=True)
-w_dates = widgets.HBox([w_startdate,w_enddate])
-w_orbit = widgets.HBox([w_relativeorbitnumber,w_orbitpass,w_changemap,w_opacity])
+w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate])
+w_orbit = widgets.HBox([w_orbitpass,w_platform,w_changemap,w_opacity])
 w_exp = widgets.HBox([w_export,w_exportname])
 w_signif = widgets.HBox([w_significance,w_median])
 w_rse = widgets.HBox([w_run,w_preview,w_exp])
@@ -136,6 +151,7 @@ def on_widget_change(b):
     w_export.disabled = True
 
 w_orbitpass.observe(on_widget_change,names='value')
+w_platform.observe(on_widget_change,names='value')
 w_relativeorbitnumber.observe(on_widget_change,names='value')
 w_startdate.observe(on_widget_change,names='value')
 w_enddate.observe(on_widget_change,names='value')
@@ -145,7 +161,8 @@ w_significance.observe(on_widget_change,names='value')
 def on_run_button_clicked(b):
     global result,m,collection,count,timestamplist1, \
            w_startdate,w_enddate,w_orbitpass,w_changemap, \
-           w_relativeorbitnumber,w_significance,w_median
+           w_relativeorbitnumber,w_significance,w_median, \
+           collectionmean
     try:
         w_text.value = 'running...'
         collection = ee.ImageCollection('COPERNICUS/S1_GRD_FLOAT') \
@@ -156,7 +173,9 @@ def on_run_button_clicked(b):
                   .filter(ee.Filter.eq('instrumentMode', 'IW')) \
                   .filter(ee.Filter.eq('orbitProperties_pass', w_orbitpass.value))   
         if w_relativeorbitnumber.value > 0:
-            collection = collection.filter(ee.Filter.eq('relativeOrbitNumber_start', int(w_relativeorbitnumber.value)))            
+            collection = collection.filter(ee.Filter.eq('relativeOrbitNumber_start', int(w_relativeorbitnumber.value)))   
+        if w_platform.value != 'Both':
+            collection = collection.filter(ee.Filter.eq('platform_number', w_platform.value))         
         collection = collection.sort('system:time_start') 
 
         acquisition_times = ee.List(collection.aggregate_array('system:time_start')).getInfo()
@@ -167,20 +186,20 @@ def on_run_button_clicked(b):
         for timestamp in acquisition_times:
             tmp = time.gmtime(int(timestamp)/1000)
             timestamplist.append(time.strftime('%x', tmp))  
-    #  make timestamps in YYYYMMDD format            
+#      make timestamps in YYYYMMDD format            
         timestamplist = [x.replace('/','') for x in timestamplist]  
         timestamplist = ['T20'+x[4:]+x[0:4] for x in timestamplist]
-    #  in case of duplicates add running integer
+#      in case of duplicates add running integer
         timestamplist1 = [timestamplist[i] + '_' + str(i+1) for i in range(len(timestamplist))]    
         relativeorbitnumbers = map(int,ee.List(collection.aggregate_array('relativeOrbitNumber_start')).getInfo())
         rons = list(set(relativeorbitnumbers))
-        txt = 'Images found: %i \n'%count
+        txt = 'Images found: %i, platform: %s \n'%(count,w_platform.value)
         txt += 'Acquisition dates: '+timestamplist[0]+'...'+timestamplist[-1]+'\n'
         txt += 'Relative orbit numbers: '+str(rons)+'\n'
         if len(rons)==1:
             txt += 'Mean incidence angle: %f'%get_incidence_angle(collection.first())
         else:
-            txt +=  'Mean incidence angle: (select a rel. orbit)'
+            txt += 'Mean incidence angle: (select a rel. orbit)'
         w_text.value = txt
         pcollection = collection.map(get_vvvh)
         pList = pcollection.toList(100)   
@@ -188,10 +207,16 @@ def on_run_button_clicked(b):
         imList = ee.Dictionary(pList.iterate(clipList,first)).get('imlist')
         result = ee.Dictionary(omnibus(imList,w_significance.value,w_median.value))
         w_preview.disabled = False
-        mosaic = collection.mosaic()
+#      display mean of the full collection                
+        collectionmean = collection.mean() \
+                               .select(0) \
+                               .clip(poly) \
+                               .sqrt() 
+        collectionmean = collectionmean.where(collectionmean.gte(1),1) \
+                           .where(collectionmean.lte(0),0) 
         if len(m.layers)>1:
             m.remove_layer(m.layers[1])
-        m.add_layer(TileLayer(url=GetTileLayerUrl( mosaic.select(0).visualize(min=0, max=1.0,opacity = 1))))
+        m.add_layer(TileLayer(url=GetTileLayerUrl( collectionmean.visualize(min=0, max=1.0,opacity = 1))))
     except Exception as e:
         w_text.value =  'Error: %s'%e
 
@@ -228,10 +253,7 @@ def on_export_button_clicked(b):
     point2 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(2))
     point3 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(3))
     collection1 = ee.ImageCollection('COPERNICUS/S2') \
-                    .filterBounds(point0) \
-                    .filterBounds(point1) \
-                    .filterBounds(point2) \
-                    .filterBounds(point3) \
+                    .filterBounds(poly) \
                     .filterDate(ee.Date(w_startdate.value),ee.Date(w_enddate.value)) \
                     .sort('CLOUDY_PIXEL_PERCENTAGE',True) \
                     .filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',1.0) 
@@ -243,14 +265,8 @@ def on_export_button_clicked(b):
                                .select('B8') \
                                .divide(5000)    
     else:
-#      use temporal averaged sentinel-1        
-        background = collection.mean() \
-                               .select(0) \
-                               .clip(poly) \
-                               .divide(20) \
-                               .add(1)                                                
-    background = background.where(background.gte(1),1) \
-                           .where(background.lte(0),0)   
+#      use temporal averaged sentinel-1                                                                        
+        background = collectionmean          
     cmaps = ee.Image.cat(cmap,smap,fmap,bmap,background).rename(['cmap','smap','fmap']+timestamplist1[1:]+['background'])                
     assexport = ee.batch.Export.image.toAsset(cmaps,
                                 description='assetExportTask', 
@@ -264,7 +280,7 @@ w_export.on_click(on_export_button_clicked)
 def run():
     global m,dc,center
     center = list(reversed(poly.centroid().coordinates().getInfo()))
-    m = Map(center=center, zoom=11, layout={'height':'400px'})
+    m = Map(center=center, zoom=10, layout={'height':'400px'})
     osm = basemap_to_tiles(basemaps.OpenStreetMap.HOT)
     mb = TileLayer(url="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWNhbnR5IiwiYSI6ImNpcjRsMmJxazAwM3hoeW05aDA1cmNkNzMifQ.d2UbIugbQFk2lnU8uHwCsQ")
     sm_control = SplitMapControl(left_layer=osm,right_layer=mb)
