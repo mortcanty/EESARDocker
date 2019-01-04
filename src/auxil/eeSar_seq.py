@@ -2,10 +2,12 @@
 Created on 21.06.2018
 
 @author: mort
+
+ipywidget interface to the GEE for sequential SAR change detection
+
 '''
 import ee, time, warnings
 import ipywidgets as widgets
-import numpy as np
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,basemaps,basemap_to_tiles,SplitMapControl)
 from auxil.eeWishart import omnibus
@@ -30,7 +32,7 @@ def get_incidence_angle(image):
     if result is not None:
         return round(result,2)
     else:
-#      incomplete overlap        
+#      incomplete overlap, so use all of the image geometry        
         return round(ee.Image(image).select('angle') \
            .reduceRegion(ee.Reducer.mean(),maxPixels=1e9) \
            .get('angle') \
@@ -248,10 +250,6 @@ w_preview.on_click(on_preview_button_clicked)
 
 def on_export_button_clicked(b):
     global w_exportname
-    point0 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(0))
-    point1 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(1))
-    point2 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(2))
-    point3 = ee.Geometry.Point(ee.List(poly.bounds().coordinates().get(0)).get(3))
     collection1 = ee.ImageCollection('COPERNICUS/S2') \
                     .filterBounds(poly) \
                     .filterDate(ee.Date(w_startdate.value),ee.Date(w_enddate.value)) \

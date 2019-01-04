@@ -6,7 +6,7 @@
 #     import readshp
 #     Xs, Ls, numclasses  = readshp.readshp(<train shapefile>, <inDataset for image>, <band positions)> )
 
-import ogr, osr
+from osgeo import ogr, osr
 from shapely.geometry import asPolygon, MultiPoint
 import shapely.wkt  
 import numpy as np
