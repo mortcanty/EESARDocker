@@ -6,7 +6,7 @@ Created on 21.06.2018
 ipywidget interface to the GEE for sequential SAR change detection
 
 '''
-import ee, time, warnings
+import ee, time, warnings, math
 import ipywidgets as widgets
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,basemaps,basemap_to_tiles,SplitMapControl)
@@ -38,9 +38,9 @@ def get_incidence_angle(image):
            .get('angle') \
            .getInfo(),2)
 
-def get_vvvh(image):
-    ''' get 'VV' and 'VH' bands from sentinel-1 imageCollection '''
-    return image.select('VV','VH')
+def get_vvvh(image):   
+    ''' get 'VV' and 'VH' bands from sentinel-1 imageCollection and restore linear signal from db-values '''
+    return image.select('VV','VH').multiply(ee.Image.constant(math.log(10.0)/10.0)).exp()
 
 def get_image(current,image):
     ''' accumulate a single image from a collection of images '''
@@ -110,8 +110,13 @@ w_enddate = widgets.Text(
     disabled=False
 )
 w_median = widgets.Checkbox(
-    value=True,
-    description='5x5 Median filter',
+    value=False,
+    description='3x3 Median filter',
+    disabled=False
+)
+w_Q = widgets.Checkbox(
+    value=False,
+    description='Use -2lnQ',
     disabled=False
 )
 w_significance = widgets.BoundedFloatText(
@@ -130,7 +135,6 @@ w_opacity = widgets.BoundedFloatText(
     description='Opacity:',
     disabled=False
 )
-
 w_text = widgets.Textarea(
     value = 'Algorithm output',
     rows = 4,
@@ -143,7 +147,7 @@ w_export = widgets.Button(description='Export to assets',disabled=True)
 w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_changemap,w_opacity])
 w_exp = widgets.HBox([w_export,w_exportname])
-w_signif = widgets.HBox([w_significance,w_median])
+w_signif = widgets.HBox([w_significance,w_median,w_Q])
 w_rse = widgets.HBox([w_run,w_preview,w_exp])
 
 box = widgets.VBox([w_text,w_dates,w_orbit,w_signif,w_rse])
@@ -158,16 +162,17 @@ w_relativeorbitnumber.observe(on_widget_change,names='value')
 w_startdate.observe(on_widget_change,names='value')
 w_enddate.observe(on_widget_change,names='value')
 w_median.observe(on_widget_change,names='value')
+w_Q.observe(on_widget_change,names='value')
 w_significance.observe(on_widget_change,names='value')
 
 def on_run_button_clicked(b):
     global result,m,collection,count,timestamplist1, \
            w_startdate,w_enddate,w_orbitpass,w_changemap, \
-           w_relativeorbitnumber,w_significance,w_median, \
+           w_relativeorbitnumber,w_significance,w_median,w_Q, \
            collectionmean
     try:
         w_text.value = 'running...'
-        collection = ee.ImageCollection('COPERNICUS/S1_GRD_FLOAT') \
+        collection = ee.ImageCollection('COPERNICUS/S1_GRD') \
                   .filterBounds(poly) \
                   .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value)) \
                   .filter(ee.Filter.eq('transmitterReceiverPolarisation', ['VV','VH'])) \
@@ -207,18 +212,15 @@ def on_run_button_clicked(b):
         pList = pcollection.toList(100)   
         first = ee.Dictionary({'imlist':ee.List([]),'poly':poly}) 
         imList = ee.Dictionary(pList.iterate(clipList,first)).get('imlist')
-        result = ee.Dictionary(omnibus(imList,w_significance.value,w_median.value))
+        result = ee.Dictionary(omnibus(imList,w_significance.value,w_median.value,w_Q.value))
         w_preview.disabled = False
 #      display mean of the full collection                
         collectionmean = collection.mean() \
                                .select(0) \
-                               .clip(poly) \
-                               .sqrt() 
-        collectionmean = collectionmean.where(collectionmean.gte(1),1) \
-                           .where(collectionmean.lte(0),0) 
+                               .clip(poly) 
         if len(m.layers)>1:
             m.remove_layer(m.layers[1])
-        m.add_layer(TileLayer(url=GetTileLayerUrl( collectionmean.visualize(min=0, max=1.0,opacity = 1))))
+        m.add_layer(TileLayer(url=GetTileLayerUrl( collectionmean.visualize(min=-20, max=5,opacity = 1))))
     except Exception as e:
         w_text.value =  'Error: %s'%e
 
