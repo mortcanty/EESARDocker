@@ -98,13 +98,13 @@ w_exportname = widgets.Text(
     disabled=False
 )
 w_startdate = widgets.Text(
-    value='2017-04-01',
+    value='2018-04-01',
     placeholder=' ',
     description='Start date:',
     disabled=False
 )
 w_enddate = widgets.Text(
-    value='2017-10-01',
+    value='2018-10-01',
     placeholder=' ',
     description='End date:',
     disabled=False
@@ -115,7 +115,7 @@ w_median = widgets.Checkbox(
     disabled=False
 )
 w_Q = widgets.Checkbox(
-    value=False,
+    value=True,
     description='Use -2lnQ',
     disabled=False
 )
