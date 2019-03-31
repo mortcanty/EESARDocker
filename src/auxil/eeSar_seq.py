@@ -53,6 +53,10 @@ def clipList(current,prev):
     imlist = imlist.add(ee.Image(current).clip(poly))
     return ee.Dictionary({'imlist':imlist,'poly':poly})
 
+def makefeature(data):
+    ''' for exporting as CSV to Drive '''
+    return ee.Feature(None, {'data': data})
+
 def handle_draw(self, action, geo_json):
     global poly
     if action == 'created':
@@ -136,6 +140,7 @@ w_opacity = widgets.BoundedFloatText(
     disabled=False
 )
 w_text = widgets.Textarea(
+    layout = widgets.Layout(width='100%'),
     value = 'Algorithm output',
     rows = 4,
     disabled = False
@@ -169,7 +174,7 @@ def on_run_button_clicked(b):
     global result,m,collection,count,timestamplist1, \
            w_startdate,w_enddate,w_orbitpass,w_changemap, \
            w_relativeorbitnumber,w_significance,w_median,w_Q, \
-           collectionmean
+           mean_incidence,collectionmean
     try:
         w_text.value = 'running...'
         collection = ee.ImageCollection('COPERNICUS/S1_GRD') \
@@ -204,7 +209,8 @@ def on_run_button_clicked(b):
         txt += 'Acquisition dates: '+timestamplist[0]+'...'+timestamplist[-1]+'\n'
         txt += 'Relative orbit numbers: '+str(rons)+'\n'
         if len(rons)==1:
-            txt += 'Mean incidence angle: %f'%get_incidence_angle(collection.first())
+            mean_incidence = get_incidence_angle(collection.first())
+            txt += 'Mean incidence angle: %f'%mean_incidence
         else:
             txt += 'Mean incidence angle: (select a rel. orbit)'
         w_text.value = txt
@@ -233,6 +239,11 @@ def on_preview_button_clicked(b):
     cmap = ee.Image(result.get('cmap')).byte()
     fmap = ee.Image(result.get('fmap')).byte() 
     bmap = ee.Image(result.get('bmap')).byte() 
+    
+    cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])
+    downloadpath = cmaps.getDownloadUrl({'scale':10})
+    w_text.value = 'Download change maps from this URL:\n'+downloadpath+'\nNote: This may be unreliable'
+    
     opacity = w_opacity.value
     if w_changemap.value=='First':
         mp = smap 
@@ -272,10 +283,32 @@ def on_export_button_clicked(b):
                                 description='assetExportTask', 
                                 assetId=w_exportname.value,scale=10,maxPixels=1e9)
     assexportid = str(assexport.id)
-    w_text.value= 'Exporting to %s\n task id: %s'%(w_exportname.value,assexportid)
+    w_text.value= 'Exporting change maps to %s\n task id: %s'%(w_exportname.value,assexportid)
     assexport.start()  
+#  export metadata to drive
+    times = [timestamp[1:9] for timestamp in timestamplist1]
+    metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
+                        'Asset export name: '+w_exportname.value,   
+                        'Orbit pass: '+w_orbitpass.value,    
+                        'Significance: '+str(w_significance.value),  
+                        'Series length: '+str(len(times)),
+                        'Timestamps: '+str(times)[1:-1],
+                        'Rel orbit numbers: '+str(w_relativeorbitnumber.value),
+                        'Platform: '+w_platform.value,
+                        'Mean incidence angles: '+str(mean_incidence),
+                        'Used 3x3 median filter: '+str(w_median.value),
+                        'Used -2lnQ: '+str(w_Q.value)]) \
+                        .cat(['Polygon:']) \
+                        .cat(poly.getInfo()['coordinates'][0])            
+    fileNamePrefix=w_exportname.value.replace('/','-')  
+    gdexport = ee.batch.Export.table.toDrive(ee.FeatureCollection(metadata.map(makefeature)),
+                         description='driveExportTask_meta', 
+                         folder = 'EarthEngineImages',
+                         fileNamePrefix=fileNamePrefix )
+    w_text.value += '\n Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))            
+    gdexport.start()                         
     
-w_export.on_click(on_export_button_clicked)  
+w_export.on_click(on_export_button_clicked) 
 
 def run():
     global m,dc,center

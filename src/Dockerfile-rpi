@@ -39,8 +39,8 @@ RUN     rm auxil-1.0.tar.gz
 
 # ipython notebook
 RUN     pip install --upgrade pip
-RUN     pip install jupyter
-RUN     pip install ipyleaflet
+RUN     pip install jupyter==1.0.0
+RUN     pip install ipyleaflet==0.9.0
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
 
 COPY    interface.ipynb /home/interface.ipynb
