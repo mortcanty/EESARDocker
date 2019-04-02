@@ -174,11 +174,15 @@ def on_run_button_clicked(b):
     global result,m,collection,count,timestamplist1, \
            w_startdate,w_enddate,w_orbitpass,w_changemap, \
            w_relativeorbitnumber,w_significance,w_median,w_Q, \
-           mean_incidence,collectionmean
+           mean_incidence,collectionmean,coords
     try:
-        w_text.value = 'running...'
+        w_text.value = 'running...'       
+        coords = ee.List(poly.bounds().coordinates().get(0))
         collection = ee.ImageCollection('COPERNICUS/S1_GRD') \
-                  .filterBounds(poly) \
+                  .filterBounds(ee.Geometry.Point(coords.get(0))) \
+                  .filterBounds(ee.Geometry.Point(coords.get(1))) \
+                  .filterBounds(ee.Geometry.Point(coords.get(2))) \
+                  .filterBounds(ee.Geometry.Point(coords.get(3))) \
                   .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value)) \
                   .filter(ee.Filter.eq('transmitterReceiverPolarisation', ['VV','VH'])) \
                   .filter(ee.Filter.eq('resolution_meters', 10)) \
@@ -264,7 +268,10 @@ w_preview.on_click(on_preview_button_clicked)
 def on_export_button_clicked(b):
     global w_exportname
     collection1 = ee.ImageCollection('COPERNICUS/S2') \
-                    .filterBounds(poly) \
+                    .filterBounds(ee.Geometry.Point(coords.get(0))) \
+                    .filterBounds(ee.Geometry.Point(coords.get(1))) \
+                    .filterBounds(ee.Geometry.Point(coords.get(2))) \
+                    .filterBounds(ee.Geometry.Point(coords.get(3))) \
                     .filterDate(ee.Date(w_startdate.value),ee.Date(w_enddate.value)) \
                     .sort('CLOUDY_PIXEL_PERCENTAGE',True) \
                     .filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',1.0) 

@@ -6,10 +6,14 @@ Sequential SAR on Earth Engine
 
 Pull and/or run the container with
 
-    sudo docker run -d -p 443:8888 --name=eesar mort/eesardocker     
+    sudo docker run -d -p 443:8888 --name=eesar mort/eesardocker  
+    
+or from a raspberry pi with
+
+	sudo docker run -d -p 443:8888 --name=eesar mort/rpi-eesardocker       
 
 Point your browser to http://localhost:443 to see the Jupyter notebook home page. 
-
+ 
 Open the Notebook 
 
     interface.ipynb 
