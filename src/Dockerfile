@@ -1,11 +1,12 @@
 # Dockerfile with Jupyter widget interface for 
 # Sequential SAR on Earth Engine
  
-FROM     debian:jessie  
+FROM     debian:stretch
 
 MAINTAINER Mort Canty "mort.canty@gmail.com"
-ENV     REFRESHED_AT 2018-11-11a
 
+ENV     REFRESHED_AT 2019-04-16
+ 
 RUN apt-get update && apt-get install -y \
     python \
     build-essential \
@@ -16,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     python-pip  
     
 RUN     pip install --upgrade pip   
+RUN     apt-get install libffi-dev
 COPY    requirements.txt /home 
 RUN     pip install -r /home/requirements.txt       
 
