@@ -1,0 +1,5 @@
+#!/bin/bash
+source ~/python/CRC4Docker/venv/bin/activate
+cd ~/python/EESARDocker/src
+python setup.py install
+jupyter notebook
