@@ -246,14 +246,14 @@ def on_preview_button_clicked(b):
     smap = ee.Image(result.get('smap')).byte()
     cmap = ee.Image(result.get('cmap')).byte()
     fmap = ee.Image(result.get('fmap')).byte() 
-    bmap = ee.Image(result.get('bmap')).byte() 
+    bmap = ee.Image(result.get('bmap')).byte()
     
     cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])
     downloadpath = cmaps.getDownloadUrl({'scale':10})
     w_text.value = 'Download change maps from this URL:\n'+downloadpath+'\nNote: This may be unreliable'
     
     if w_changemap.value=='First':
-        mp = smap 
+        mp = smap
         mx = count
     elif w_changemap.value=='Last':
         mp=cmap

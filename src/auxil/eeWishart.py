@@ -101,10 +101,14 @@ def filter_j(current,prev):
     smap = ee.Image(prev.get('smap'))
     fmap = ee.Image(prev.get('fmap'))
     bmap = ee.Image(prev.get('bmap'))
+    dmaps = ee.List(prev.get('dmaps'))
     significance = ee.Image(prev.get('significance'))    
     j = ee.Number(prev.get('j'))
+    
+    dmap = ee.Image(dmaps.get(ell.add(j).subtract(2))) # ell+j-1 th element
+    
     cmapj = cmap.multiply(0).add(ell.add(j).subtract(1))
-    cmap1 = cmap.multiply(0).add(1)
+#    cmap1 = cmap.multiply(0).add(1)
     tst = pv.lt(significance).And(pvQ.lt(significance)).And(cmap.eq(ell.subtract(1)))
     cmap = cmap.where(tst,cmapj)
     fmap = fmap.where(tst,fmap.add(1))
@@ -112,10 +116,11 @@ def filter_j(current,prev):
     idx = ell.add(j).subtract(2)
     tmp = bmap.select(idx)
     bname = bmap.bandNames().get(idx)
-    tmp = tmp.where(tst,cmap1)
+    tmp = tmp.where(tst,dmap)
     tmp = tmp.rename([bname])    
     bmap = bmap.addBands(tmp,[bname],True)    
-    return ee.Dictionary({'ell':ell,'j':j.add(1),'significance':significance,'pvQ':pvQ,'cmap':cmap,
+    return ee.Dictionary({'ell':ell,'j':j.add(1),'significance':significance,'pvQ':pvQ,'dmaps':dmaps,
+                                                                                       'cmap':cmap,
                                                                                        'smap':smap,
                                                                                        'fmap':fmap,
                                                                                        'bmap':bmap})
@@ -129,26 +134,52 @@ def filter_ell(current,prev):
     significance = ee.Image(prev.get('significance'))
     useQ = ee.Number(prev.get('useQ'))
     pvQ = ee.Algorithms.If(useQ,pvQ,ee.Image.constant(0))
+    dmaps = prev.get('dmaps')
     cmap = prev.get('cmap')
     smap = prev.get('smap')
     fmap = prev.get('fmap')
     bmap = prev.get('bmap')
-    first = ee.Dictionary({'ell':ell,'j':1, 'significance':significance,'pvQ':pvQ,'cmap':cmap,
+    first = ee.Dictionary({'ell':ell,'j':1, 'significance':significance,'pvQ':pvQ,'dmaps':dmaps,
+                                                                                  'cmap':cmap,
                                                                                   'smap':smap,
                                                                                   'fmap':fmap,
                                                                                   'bmap':bmap})     
     result = ee.Dictionary(ee.List(pvs).iterate(filter_j,first))   
-    return ee.Dictionary({'ell':ell.add(1),'significance':significance,'useQ':useQ,'cmap':result.get('cmap'),
+    return ee.Dictionary({'ell':ell.add(1),'significance':significance,'useQ':useQ,'dmaps':dmaps,
+                                                                                   'cmap':result.get('cmap'),
                                                                                    'smap':result.get('smap'),
                                                                                    'fmap':result.get('fmap'),
                                                                                    'bmap':result.get('bmap')})
 
+def dmap_iter(current,prev):
+    im1 = ee.Image(current)
+    prev = ee.Dictionary(prev)
+    dmaps = ee.List(prev.get('dmaps'))
+    im2list = ee.List(prev.get('im2list'))
+    im2 = ee.Image(im2list.get(0))
+    eiv1 = im2.subtract(im1).select(0)
+    eiv2 = im2.subtract(im1).select(1)
+    dmap = ee.Image(im1.select(0)).multiply(0.0).rename(['direction'])
+    dmap1 = dmap.add(1)
+    dmap2 = dmap.add(2)
+    dmap = dmap.add(3)
+    tst1 = eiv1.gt(0).And(eiv2.gt(0)) 
+    tst2 = eiv1.lt(0).And(eiv2.lt(0)) 
+    dmap = dmap.where(tst1,dmap1)
+    dmap = dmap.where(tst2,dmap2)
+    return ee.Dictionary({'im2list':im2list.remove(im2),'dmaps':dmaps.add(dmap)})
+
 def omnibus(imList,significance=0.0001,median=False,useQ=False):
-    '''return change maps for sequential omnibus change algorithm'''    
-    imList = ee.List(imList).map(multbyenl)    
+    '''return change maps for sequential omnibus change algorithm''' 
+    imList = ee.List(imList)  
     p = ee.Image(imList.get(0)).bandNames().length()
-    k = imList.length() 
+    k = imList.length()  
+#  generate change direction map    
+    first = ee.Dictionary({'im2list':imList.slice(1),'dmaps':ee.List([])})
+    result = ee.Dictionary(imList.slice(0,-1).iterate(dmap_iter,first))
+    dmaps = ee.List(result.get('dmaps'))   
 #  pre-calculate p-value array    
+    imList = imList.map(multbyenl)   
     ells = ee.List.sequence(1,k.subtract(1))
     first = ee.Dictionary({'k':k,'p':p,'median':median,'imList':imList,'pv_arr':ee.List([])})
     result = ee.Dictionary(ells.iterate(ells_iter,first))
@@ -159,7 +190,8 @@ def omnibus(imList,significance=0.0001,median=False,useQ=False):
     fmap = ee.Image(imList.get(0)).select(0).multiply(0.0)   
     bmap = ee.Image.constant(ee.List.repeat(0,k.subtract(1)))    
     significance = ee.Image.constant(significance)
-    first = ee.Dictionary({'ell':1,'significance':significance,'useQ':useQ,'cmap':cmap,
+    first = ee.Dictionary({'ell':1,'significance':significance,'useQ':useQ,'dmaps':dmaps,
+                                                                           'cmap':cmap,
                                                                            'smap':smap,
                                                                            'fmap':fmap,
                                                                            'bmap':bmap})
