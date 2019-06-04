@@ -8,7 +8,7 @@ import ipywidgets as widgets
 import numpy as np
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,basemaps,basemap_to_tiles,SplitMapControl)
-from auxil.eeWishart import omnibus
+from auxil.eeWishart_new import omnibus
 
 ee.Initialize()
 

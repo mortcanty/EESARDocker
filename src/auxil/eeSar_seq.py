@@ -13,7 +13,7 @@ from ipyleaflet import (Map,DrawControl,TileLayer,
                         basemaps,basemap_to_tiles,
                         LayersControl,
                         SplitMapControl)
-from auxil.eeWishart import omnibus
+from auxil.eeWishart_new import omnibus
 
 ee.Initialize()
 
@@ -307,7 +307,7 @@ def on_export_ass_button_clicked(b):
                         'Platform: '+w_platform.value,
                         'Mean incidence angles: '+str(mean_incidence),
                         'Used 3x3 median filter: '+str(w_median.value),
-                        'Used -2lnQ: '+str(w_Q.value)]) \
+                        'Used Q test: '+str(w_Q.value)]) \
                         .cat(['Polygon:']) \
                         .cat(poly.getInfo()['coordinates'][0])            
     fileNamePrefix=w_exportname.value.replace('/','-')  
