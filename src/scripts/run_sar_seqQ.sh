@@ -8,10 +8,12 @@ alpha="${@: -1}"
 enl=("${@: -2}")
 imdir=("${@: -3}")
 
+echo $1
+
 fns=$(ls -l $imdir | grep $1 | \
-     grep -v 'sarseq' | grep -v 'enl' | \
-     grep -v 'mmse' | grep -v 'gamma' | \
-     grep -v 'warp' | grep -v 'sub' |  awk '{print $9}')
+     grep -v 'sub.tif' |  grep -v 'enl.tif' | awk '{print $9}')
      
-python scripts/sar_seqQ.py -s $alpha  \
+echo ${fns//$1/$imdir$1}    
+     
+python scripts/sar_seqQ.py -s $alpha -m \
                      ${fns//$1/$imdir$1} sarseqQ.tif $enl 
