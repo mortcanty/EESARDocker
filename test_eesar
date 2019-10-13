@@ -2,4 +2,5 @@
 source ~/python/CRC4Docker/venv/bin/activate
 cd ~/python/EESARDocker/src
 python setup.py install
+python setup.py sdist
 jupyter notebook --no-browser --ip=0.0.0.0 --allow-root --NotebookApp.token=''

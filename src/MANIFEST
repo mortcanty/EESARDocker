@@ -3,14 +3,9 @@ setup.py
 auxil/__init__.py
 auxil/auxil1.py
 auxil/congrid.py
-auxil/eeMad.py
 auxil/eeSar_seq.py
 auxil/eeWishart.py
-auxil/eeWishart_new.py
-auxil/eeWishart_old.py
-auxil/eepca.py
-auxil/header.py
 auxil/lookup.py
-auxil/png.py
-auxil/readshp.py
-auxil/supervisedclass.py
+auxil/registerms.py
+auxil/registersar.py
+auxil/subset.py

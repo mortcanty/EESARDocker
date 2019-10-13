@@ -1,32 +1,34 @@
 '''
 Created on 09.01.2017
 
-The sequential omnibus algorithm for Sentinel-1 dual pol, diagonal only imagery
+The sequential omnibus algorithm for polarimetric SAR imagery
 
 @author: mort
 '''
 
 
 import ee
-from eeMad import chi2cdf
+
+def chi2cdf(chi2,df):
+    ''' Chi square cumulative distribution function '''
+    return ee.Image(chi2.divide(2)).gammainc(ee.Number(df).divide(2))
 
 def det(image):
-    '''return determinant of 1, 2, 3, 4, or 9-band polarimetric image '''   
-    n = image.bandNames().length()
-    det = ee.Algorithms.If(n.eq(1),image,False)
-    det = ee.Algorithms.If(n.eq(2),image.expression('b(0)*b(1)'),det)
-    det = ee.Algorithms.If(n.eq(3),image.expression('b(0)*b(1)*b(2)'),det)
-    det = ee.Algorithms.If(n.eq(4),image.expression('b(0)*b(3)-b(1)*b(1)-b(2)*b(2)'),det)
-    det = ee.Algorithms.If(n.eq(9),image.expression('b(0)*b(1)'),det)  # dummy
-    return det
-
+    '''return determinant of 1, 2, 4, or 9-band polarimetric image ''' 
+    detmap = {'k':image.select(0),'ar':image.select(1),'ai':image.select(2),'pr':image.select(3),'pi':image.select(4),
+              's':image.select(5),'br':image.select(6),'bi':image.select(7),'z':image.select(8)}
+    expr = 'k*s*z+2*(ar*br*pr-ai*bi*pr+ai*br*pi+ar*bi*pi)-s*(pr*pr+pi*pi)-k*(br*br+bi*bi)-s*(ar*ar+ai*ai)'
+    bands = image.bandNames().length()
+    result = ee.Image(ee.Algorithms.If(bands.eq(1),image,None))
+    result = ee.Image(ee.Algorithms.If(bands.eq(2),image.expression('b(0)*b(1)'),result))
+    result = ee.Image(ee.Algorithms.If(bands.eq(4),image.expression('b(0)*b(3)-b(1)*b(1)-b(2)*b(2)'),result))
+    return ee.Image(ee.Algorithms.If(bands.eq(9),image.expression(expr,detmap),result))
 
 def log_det_sum(imList,j):
     '''return the log of the the determinant of the sum of the first j images in imList'''
     imList = ee.List(imList)
     sumj = ee.ImageCollection(imList.slice(0,j)).reduce(ee.Reducer.sum())                
     return ee.Image(det(sumj)).log()
-    
     
 def log_det(imList,j):
     '''return the log of the the determinant of the jth image in imList'''
@@ -42,8 +44,9 @@ def pv(imList,median,j,enl):
     f = p2
     one = ee.Number(1.0)
    
-    rhoj = ee.Number(ee.Algorithms.If( p2.eq(2),                                   
-        one,
+    rhoj = ee.Number(ee.Algorithms.If( p2.eq(2),
+#      1 - (1.+1./(j*(j-1)))/(6.*p1*n) where p1=1                                      
+        one.subtract(one.add(one.divide(j.multiply(j.subtract(one)))).divide(6).divide(enl)),
 #      1 - (2*p2-1.)*(1.+1./(j*(j-1.))/6*p*n               
         one.subtract( p2.multiply(2).subtract(one) \
                       .multiply(one.add(one.divide(j.multiply(j.subtract(one))))) \
@@ -51,9 +54,10 @@ def pv(imList,median,j,enl):
                     ) ))
    
     omega2j = ee.Number(ee.Algorithms.If( p2.eq(2),
-        0,        
+#      -(f/4.)*(1.-1./rhoj)**2                                    
+        one.subtract(one.divide(rhoj)).pow(2.0).multiply(f.divide(-4.0)),        
 #      (f/4)*(1-1./rhoj)**2 + (1./(24.*n**2))*p2(p2-1.)*(1.+(2.*j-1.)/(j**2*(j-1.)**2))/rh0j**2       
-        f.multiply(one.subtract(one.divide(rhoj))).divide(4). \
+        f.multiply(one.subtract(one.divide(rhoj)).pow(2)).divide(4). \
         add( one.divide(enl.pow(2).multiply(24)) \
              .multiply(p2.multiply(p2.subtract(one))) \
              .multiply(one.add(j.multiply(2)).subtract(one)) \
@@ -112,13 +116,15 @@ def ells_iter(current,prev):
     one = ee.Number(1)
 #  rho, w2 values 
     rho = ee.Number(ee.Algorithms.If( p2.eq(2),
-                                      one,
+                                      one.subtract(
+                                          k.divide(enl).subtract(one.divide(enl.multiply(k))) \
+                                          .divide(k.subtract(one).multiply(6))),
                                       one.subtract( 
                                           p2.multiply(2).subtract(one) \
                                          .multiply(k.subtract(one.divide(k))) \
                                          .divide(k.subtract(one).multiply(p).multiply(6).multiply(enl)) )))
     w2 = ee.Number(ee.Algorithms.If( p2.eq(2),
-                                     0,
+                                     k.subtract(one).multiply(one.subtract(one.divide(rho)).pow(2)).divide(2),
                                      p2.multiply(p2.subtract(one)) \
                                      .multiply(k.subtract(one.divide(k.pow(2)))) \
                                      .divide(rho.pow(2).multiply(24).multiply(enl.pow(2))) \
@@ -165,8 +171,6 @@ def filter_ell(current,prev):
     prev = ee.Dictionary(prev)
     ell = ee.Number(prev.get('ell'))
     significance = ee.Image(prev.get('significance'))
-    useQ = ee.Number(prev.get('useQ'))
-    pvQ = ee.Algorithms.If(useQ,pvQ,ee.Image.constant(0))
     cmap = prev.get('cmap')
     smap = prev.get('smap')
     fmap = prev.get('fmap')
@@ -176,10 +180,10 @@ def filter_ell(current,prev):
                                                                                   'fmap':fmap,
                                                                                   'bmap':bmap})     
     result = ee.Dictionary(ee.List(pvs).iterate(filter_j,first))   
-    return ee.Dictionary({'ell':ell.add(1),'significance':significance,'useQ':useQ,'cmap':result.get('cmap'),
-                                                                                   'smap':result.get('smap'),
-                                                                                   'fmap':result.get('fmap'),
-                                                                                   'bmap':result.get('bmap')})
+    return ee.Dictionary({'ell':ell.add(1),'significance':significance,'cmap':result.get('cmap'),
+                                                                       'smap':result.get('smap'),
+                                                                       'fmap':result.get('fmap'),
+                                                                       'bmap':result.get('bmap')})
 
 def dmap_iter(current,prev):
     '''post-process for directional change maps'''
@@ -188,22 +192,22 @@ def dmap_iter(current,prev):
     image = ee.Image(current) 
     p = image.bandNames().length()  
     avimg = ee.Image(prev.get('avimg'))
-    diff = image.subtract(avimg)
-    disc = diff.expression( '((b(0)-b(3))**2 + 4.0*(b(1)**2+b(2)**2))**0.5' )
-    eiv1 = ee.Image(ee.Algorithms.If(p.eq(2),diff.select(0),
-                            diff.expression( '(b(0)+b(3))' ).add(disc)))
-    eiv2 = ee.Image(ee.Algorithms.If(p.eq(2),diff.select(1),
-                            diff.expression( '(b(0)+b(3))' ).subtract(disc)))
-    tst1 = eiv1.gt(0).And(eiv2.gt(0)) # positive definite)) 
-    tst2 = eiv1.lt(0).And(eiv2.lt(0)) # negative definite
+    diff = image.subtract(avimg)    
+#  positive/negative definiteness from pivots      
+    posd = ee.Image(ee.Algorithms.If(p.eq(1),det(diff).gt(0),False))
+    posd = ee.Image(ee.Algorithms.If(p.eq(2).Or(p.eq(4)),det(diff.select(0)).gt(0).And(det(diff).gt(0)),posd))
+    posd = ee.Image(ee.Algorithms.If(p.eq(9),det(diff.select(0)).gt(0).And(det(diff.select(0,1,2,5)).gt(0)).And(det(diff).gt(0)),posd))
+    negd = ee.Image(ee.Algorithms.If(p.eq(1),det(diff).lt(0),False))
+    negd = ee.Image(ee.Algorithms.If(p.eq(2).Or(p.eq(4)),det(diff.select(0)).lt(0).And(det(diff).gt(0)),negd))
+    negd = ee.Image(ee.Algorithms.If(p.eq(9),det(diff.select(0)).lt(0).And(det(diff.select(0,1,2,5)).gt(0)).And(det(diff).lt(0)),negd))
     bmap = ee.Image(prev.get('bmap'))
     bmapj = bmap.select(j)
     dmap1 = bmapj.multiply(0).add(1)
     dmap2 = bmapj.multiply(0).add(2)
     dmap3 = bmapj.multiply(0).add(3)
     bmapj = bmapj.where(bmapj,dmap3)
-    bmapj = bmapj.where(bmapj.And(tst1),dmap1)
-    bmapj = bmapj.where(bmapj.And(tst2),dmap2)  
+    bmapj = bmapj.where(bmapj.And(posd),dmap1)
+    bmapj = bmapj.where(bmapj.And(negd),dmap2)  
     bmap = bmap.addBands(bmapj,overwrite=True)
 #  provisional means
     r = ee.Image(prev.get('r')).add(1)
@@ -213,27 +217,29 @@ def dmap_iter(current,prev):
     r = r.where(bmapj,1)
     return ee.Dictionary({'avimg':avimg,'bmap':bmap,'j':j.add(1),'r':r})
 
-def omnibus(imList,significance=0.0001,enl=4.4,median=False,useQ=False):
+def omnibus(imList,significance=0.0001,enl=4.4,median=False):
     '''return change maps for sequential omnibus change algorithm''' 
     imList = ee.List(imList)  
     k = imList.length()  
 #  pre-calculate p-value array    
     ells = ee.List.sequence(1,k.subtract(1))
-    first = ee.Dictionary({'k':k,'median':median,'enl':enl,'imList':imList,'pv_arr':ee.List([])})
+    first = ee.Dictionary({'k':k,'median':median,'enl':enl,'imList':imList,'pv_arr':ee.List([])}) 
     result = ee.Dictionary(ells.iterate(ells_iter,first))
-    pv_arr = ee.List(result.get('pv_arr'))  
+    pv_arr = ee.List(result.get('pv_arr'))                                           
 #  filter p-values to generate cmap, smap, fmap and bmap
     cmap = ee.Image(imList.get(0)).select(0).multiply(0.0)
     smap = ee.Image(imList.get(0)).select(0).multiply(0.0)
     fmap = ee.Image(imList.get(0)).select(0).multiply(0.0)   
     bmap = ee.Image.constant(ee.List.repeat(0,k.subtract(1)))    
     significance = ee.Image.constant(significance)
-    first = ee.Dictionary({'ell':1,'significance':significance,'useQ':useQ,'cmap':cmap,
-                                                                           'smap':smap,
-                                                                           'fmap':fmap,
-                                                                           'bmap':bmap})
-    result = ee.Dictionary(pv_arr.iterate(filter_ell,first))     
-    return result
+    first = ee.Dictionary({'ell':1,'significance':significance,'cmap':cmap,'smap':smap,'fmap':fmap,'bmap':bmap})
+    result = ee.Dictionary(pv_arr.iterate(filter_ell,first))       
+#  post-process bmap for change direction
+    bmap = ee.Image(result.get('bmap')) 
+    r = ee.Image(cmap.multiply(0).add(1))
+    first = ee.Dictionary({'avimg':imList.get(0),'bmap':bmap,'j':ee.Number(0),'r':r})  
+    dmap = ee.Dictionary(imList.slice(1).iterate(dmap_iter,first)).get('bmap')     
+    return result.set('bmap',ee.Image(dmap))
 
 if __name__ == '__main__':
     pass

@@ -21,17 +21,61 @@ def call_register((fn0,fni,dims)):
 def call_median_filter(pv):
     from scipy import ndimage
     return ndimage.filters.median_filter(pv, size = (3,3))
- 
+
+def getimg(fn):
+#  read 9- 4- 3- 2- or 1-band preprocessed polarimetric matrix file 
+    from osgeo.gdalconst import GA_ReadOnly
+    from osgeo import gdal
+    import numpy as np
+    import sys
+    gdal.AllRegister()
+    try:            
+        inDataset = gdal.Open(fn,GA_ReadOnly)                             
+        cols = inDataset.RasterXSize
+        rows = inDataset.RasterYSize    
+        bands = inDataset.RasterCount
+        result = np.zeros((rows*cols,bands))
+        for k in range(bands):
+            result[:,k] = inDataset.GetRasterBand(k+1).ReadAsArray(0,0,cols,rows).ravel()
+        inDataset = None    
+        return result  
+    except Exception as e:
+        print 'Error: %s  -- Could not read file'%e
+        sys.exit(1)        
+        
+def loewner(img):  
+    ''' return Loewner direction image: 1 positive definite
+                                        2 negative definite
+                                        3 neither ''' 
+    import numpy as np
+    bands = img.shape[1]  
+    dir3 = np.zeros(img.shape[0]) + 3
+    dir2 = np.zeros(img.shape[0]) + 2
+    dir1 = np.zeros(img.shape[0]) + 1
+    if bands <= 3:
+        dmy = np.where(np.min(img,1)>0,dir1,dir3)
+        result = np.where(np.max(img,1)<0,dir2,dmy)
+    elif bands == 4:
+#      eivs = b(0) + b(1) +- ((b(0)-b(3))**2 + 4.0*(b(1)**2+b(2)**2))**0.5        
+        disc = ( (img[:,0]-img[:,3])**2 + 4.0*(img[:,1]**2 + img[:,2]**2) )**0.5
+        eivs = np.zeros((img.shape[0],2))
+        eivs[:,0] = img[:,0]+img[:,3] + disc
+        eivs[:,1] = img[:,0]+img[:,3] - disc
+        dmy = np.where(np.min(eivs,1)>0,dir1,dir3)
+        result = np.where(np.max(eivs,1)<0,dir2,dmy)      
+    return result
+         
 def PV((fns,n,cols,rows,bands)):
     '''Return p-values for change indices R^ell_j'''        
     import numpy as np
-    from osgeo.gdalconst import GA_ReadOnly
-    from osgeo import gdal
     import sys
-    from scipy import stats  
+    from scipy import stats   
+    from osgeo.gdalconst import GA_ReadOnly 
+    from osgeo import gdal
+    
     def getmat(fn,cols,rows,bands):
-    #  read 9- 4- 3- 2- or 1-band preprocessed polarimetric matrix files 
-    #  and return (complex) matrix elements
+    #  read 9- 4- 3- 2- or 1-band preprocessed polarimetric matrix file 
+    #  and return (complex) matrix elements      
         try:
             inDataset1 = gdal.Open(fn,GA_ReadOnly)     
             if bands == 9:
@@ -105,8 +149,8 @@ def PV((fns,n,cols,rows,bands)):
             return result
         except Exception as e:
             print 'Error: %s  -- Could not read file'%e
-            sys.exit(1)   
-    
+            sys.exit(1)        
+              
     j = np.float64(len(fns))
     eps = sys.float_info.min
     k = 0.0; a = 0.0; rho = 0.0; xsi = 0.0; b = 0.0; zeta = 0.0
@@ -214,7 +258,7 @@ def change_maps(pvarray,significance):
             idx = np.where((pv<=significance)&(pvQ<=significance)&(cmap==ell))
             fmap[idx] += 1 
             cmap[idx] = j+1 
-            bmap[idx,j] = 255 
+            bmap[idx,j] = 1 
             if ell==0:
                 smap[idx] = j+1    
     return (cmap,smap,fmap,bmap)
@@ -229,11 +273,16 @@ def getpvQ(lnQ,bands,k,n):
         f =(k-1)*p**2
         rho = 1.0 - (2*p**2-1)*(k/n-1.0/(n*k))/(6.0*(k-1)*p)
         omega2 = p**2*(p**2-1)*(k/n**2 - 1.0/(n*n*k*k))/(24.0*rho**2) - p**2*(k-1)*(1.0-1.0/rho)**2/4.0
-    elif bands==2 or bands==3:
-#      quad and dual diagonal matrix cases, use first order approx 
-        f = (k-1)*bands 
-        rho = 1.0
-        omega2 = 0.0       
+    elif bands==2:
+#      dual diagonal matrix case, 
+        f = 2.0*(k-1)
+        rho = 1.0 - (k/n-1.0/(n*k))/(6.0*(k-1))
+        omega2 = -(k-1)*(1.0-1/rho)**2/2.0     
+    else: 
+#      quad diagonal matrix case
+        f = 3.0*(k-1)
+        rho = 1.0 - (k/n-1.0/(n*k))/(6.0*(k-1))
+        omega2 = -3.0*(k-1)*(1.0-1/rho)**2/4.0  
 #  return p-value  
     Z = -2*rho*lnQ
     return 1.0-((1.-omega2)*stats.chi2.cdf(Z,[f])+omega2*stats.chi2.cdf(Z,[f+4]))   
@@ -394,7 +443,19 @@ enl:
                 pvarray[i,j,:] = pvs[j-i].ravel() 
             pvarray[i,k-1,:] = pvQ.ravel()  
     print '\nelapsed time for p-value calculation: '+str(time.time()-start1)    
-    cmap,smap,fmap,bmap = change_maps(pvarray,significance)
+    cmap,smap,fmap,bmap = change_maps(pvarray,significance)    
+#  post process bmap for Loewner direction   
+    avimg = getimg(fns[0])
+    r = 1.0 
+    for i in range(k-1):
+        img = getimg(fns[i+1])
+        direct = loewner(img-avimg)
+        bmap[:,i] = np.where(bmap[:,i],direct,bmap[:,i])
+        r += 1.0
+        avimg = avimg + (img-avimg)/r
+        for j in range(bands): 
+#          reset avimg where change occurred
+            avimg[:,j] = np.where(bmap[:,i],img[:,j],avimg[:,j])
 #  write to file system    
     cmap = np.reshape(cmap,(rows,cols))
     fmap = np.reshape(fmap,(rows,cols))
