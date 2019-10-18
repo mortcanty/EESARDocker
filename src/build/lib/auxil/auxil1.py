@@ -8,7 +8,7 @@
 import numpy as np  
 import math, ctypes  
 from numpy.ctypeslib import ndpointer
-from scipy.special import betainc 
+from scipy.special import betainc  
 from numpy.fft import fft2, ifft2, fftshift 
 import scipy.ndimage.interpolation as ndii 
 

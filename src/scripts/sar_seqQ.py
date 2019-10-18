@@ -14,8 +14,9 @@
 # 
 # Copyright (c) 2018 Mort Canty
 
-def call_register((fn0,fni,dims)):
+def call_register(arg3):
     from auxil.registersar import register
+    fn0,fni,dims = arg3
     return register(fn0,fni,dims)
 
 def call_median_filter(pv):
@@ -40,7 +41,7 @@ def getimg(fn):
         inDataset = None    
         return result  
     except Exception as e:
-        print 'Error: %s  -- Could not read file'%e
+        print( 'Error: %s  -- Could not read file'%e )
         sys.exit(1)        
         
 def loewner(img):  
@@ -65,7 +66,7 @@ def loewner(img):
         result = np.where(np.max(eivs,1)<0,dir2,dmy)      
     return result
          
-def PV((fns,n,cols,rows,bands)):
+def PV(arg5):
     '''Return p-values for change indices R^ell_j'''        
     import numpy as np
     import sys
@@ -148,8 +149,10 @@ def PV((fns,n,cols,rows,bands)):
             inDataset1 = None
             return result
         except Exception as e:
-            print 'Error: %s  -- Could not read file'%e
-            sys.exit(1)        
+            print( 'Error: %s  -- Could not read file'%e )
+            sys.exit(1)   
+            
+    fns,n,cols,rows,bands = arg5
               
     j = np.float64(len(fns))
     eps = sys.float_info.min
@@ -292,7 +295,7 @@ def main():
     import os, sys, time, getopt
     from osgeo import gdal
     from auxil import subset
-    from ipyparallel import Client
+    from ipyparallel import Client 
     from osgeo.gdalconst import GA_ReadOnly, GDT_Byte
     from tempfile import NamedTemporaryFile
     usage = '''
@@ -331,7 +334,7 @@ enl:
     medianfilter = False
     for option, value in options: 
         if option == '-h':
-            print usage
+            print( usage )
             return 
         elif option == '-m':
             medianfilter = True
@@ -339,6 +342,10 @@ enl:
             dims = eval(value)
         elif option == '-s':
             significance = eval(value)   
+    if len(args)<4:
+        print('incorrect number of arguments')
+        print( usage )
+        sys.exit()
     k = len(args)-2
     fns = args[0:k]  
     n = np.float64(eval(args[-1])) 
@@ -352,7 +359,7 @@ enl:
         rows = inDataset1.RasterYSize    
         bands = inDataset1.RasterCount
     except Exception as e:
-        print 'Error: %s  -- Could not read file'%e
+        print( 'Error: %s  -- Could not read file'%e)
         sys.exit(1)    
     if dims is not None:
 #  images are not yet co-registered, so subset first image and register the others
@@ -360,40 +367,39 @@ enl:
         fn0 = subset.subset(fns[0],dims)
         args1 = [(fns[0],fns[i],dims) for i in range(1,k)]
         try:
-            print ' \nattempting parallel execution of co-registration ...' 
+            print( ' \nattempting parallel execution of co-registration ...' ) 
             start1 = time.time()  
             c = Client()
-            print 'available engines %s'%str(c.ids)
+            print( 'available engines %s'%str(c.ids) )
             v = c[:]  
             v.execute('from registersar import register') 
             fns = v.map_sync(call_register,args1)
-            print 'elapsed time for co-registration: '+str(time.time()-start1) 
+            print( 'elapsed time for co-registration: '+str(time.time()-start1) ) 
         except Exception as e: 
             start1 = time.time()
-            print '%s \nFailed, so running sequential co-registration ...'%e
+            print( '%s \nFailed, so running sequential co-registration ...'%e )
             fns = map(call_register,args1)  
-            print 'elapsed time for co-registration: '+str(time.time()-start)
         fns.insert(0,fn0)  
 #      point inDataset1 to the subset image for correct georefrerencing         
         inDataset1 = gdal.Open(fn0,GA_ReadOnly)           
-    print '==============================================='
-    print '     Multi-temporal SAR Change Detection'
-    print '==============================================='   
-    print time.asctime()  
-    print 'First (reference) filename:  %s'%fns[0]
-    print 'number of images: %i'%k
-    print 'equivalent number of looks: %f'%n
-    print 'significance level: %f'%significance
+    print( '===============================================' )
+    print( '     Multi-temporal SAR Change Detection' )
+    print( '===============================================' )   
+    print( time.asctime() )  
+    print( 'First (reference) filename:  %s'%fns[0] )
+    print( 'number of images: %i'%k )
+    print( 'equivalent number of looks: %f'%n )
+    print( 'significance level: %f'%significance )
     if bands==9:
-        print 'Quad ploarization'
+        print( 'Quad polarization')
     elif bands==4:
-        print 'Dual polarizaton'
+        print( 'Dual polarizaton' )
     elif bands==3:
-        print 'Quad polarization, diagonal only'
+        print( 'Quad polarization, diagonal only' )
     elif bands==2:
-        print 'Dual polarization, diagonal only'
+        print( 'Dual polarization, diagonal only' )
     else:
-        print 'Intensity image'
+        print( 'Intensity image' )
 #  output file
     path = os.path.abspath(fns[0])    
     dirn = os.path.dirname(path)
@@ -401,17 +407,17 @@ enl:
 #  create temporary, memory-mapped array of change indices p(Ri<ri)
     mm = NamedTemporaryFile()
     pvarray = np.memmap(mm.name,dtype=np.float64,mode='w+',shape=(k,k,rows*cols))  
-    print 'pre-calculating Rj and p-values ...' 
+    print( 'pre-calculating Rj and p-values ...' ) 
     start1 = time.time() 
     try:
-        print 'attempting parallel calculation ...' 
+        print( 'attempting parallel calculation ...' ) 
         c = Client()
-        print 'available engines %s'%str(c.ids)
+        print( 'available engines %s'%str(c.ids) )
         v = c[:]   
-        print 'ell = ',
+        print( 'ell = ', )
         sys.stdout.flush()      
         for i in range(k-1):  
-            print i+1,  
+            print( i+1, )  
             sys.stdout.flush()              
             args1 = [(fns[i:j+2],n,cols,rows,bands) for j in range(i,k-1)]         
             results = v.map_sync(PV,args1) # list of tuples (p-value, lnRj)
@@ -425,11 +431,11 @@ enl:
                 pvarray[i,j,:] = pvs[j-i].ravel() 
             pvarray[i,k-1,:] = pvQ.ravel()    
     except Exception as e: 
-        print '%s \nfailed, so running sequential calculation ...'%e  
-        print 'ell= ',
+        print( '%s \nfailed, so running sequential calculation ...'%e )  
+        print( 'ell= ', )
         sys.stdout.flush()  
         for i in range(k-1):        
-            print i+1,   
+            print( i+1, )   
             sys.stdout.flush()             
             args1 = [(fns[i:j+2],n,cols,rows,bands) for j in range(i,k-1)]                         
             results = map(PV,args1)  # list of tuples (p-value, lnRj)
@@ -442,7 +448,7 @@ enl:
             for j in range(i,k-1):
                 pvarray[i,j,:] = pvs[j-i].ravel() 
             pvarray[i,k-1,:] = pvQ.ravel()  
-    print '\nelapsed time for p-value calculation: '+str(time.time()-start1)    
+    print( '\nelapsed time for p-value calculation: '+str(time.time()-start1) )    
     cmap,smap,fmap,bmap = change_maps(pvarray,significance)    
 #  post process bmap for Loewner direction   
     avimg = getimg(fns[0])
@@ -475,7 +481,7 @@ enl:
     outBand = outDataset.GetRasterBand(1)
     outBand.WriteArray(cmap,0,0) 
     outBand.FlushCache() 
-    print 'last change map written to: %s'%outfn1  
+    print( 'last change map written to: %s'%outfn1 )  
     outfn2=outfn.replace(name,name+'_fmap')
     outDataset = driver.Create(outfn2,cols,rows,1,GDT_Byte)
     if geotransform is not None:
@@ -485,7 +491,7 @@ enl:
     outBand = outDataset.GetRasterBand(1)
     outBand.WriteArray(fmap,0,0) 
     outBand.FlushCache() 
-    print 'frequency map written to: %s'%outfn2     
+    print( 'frequency map written to: %s'%outfn2 )     
     outfn3=outfn.replace(name,name+'_bmap')
     outDataset = driver.Create(outfn3,cols,rows,k-1,GDT_Byte)
     if geotransform is not None:
@@ -496,7 +502,7 @@ enl:
         outBand = outDataset.GetRasterBand(i+1)
         outBand.WriteArray(bmap[:,:,i],0,0) 
         outBand.FlushCache() 
-    print 'bitemporal map image written to: %s'%outfn3    
+    print( 'bitemporal map image written to: %s'%outfn3 )    
     outfn4=outfn.replace(name,name+'_smap')
     outDataset = driver.Create(outfn4,cols,rows,1,GDT_Byte)
     if geotransform is not None:
@@ -506,8 +512,8 @@ enl:
     outBand = outDataset.GetRasterBand(1)
     outBand.WriteArray(smap,0,0) 
     outBand.FlushCache() 
-    print 'first change map written to: %s'%outfn4         
-    print 'total elapsed time: '+str(time.time()-start)   
+    print( 'first change map written to: %s'%outfn4 )         
+    print( 'total elapsed time: '+str(time.time()-start) )   
     outDataset = None    
     inDataset1 = None        
     

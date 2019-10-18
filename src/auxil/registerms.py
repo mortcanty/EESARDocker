@@ -22,13 +22,13 @@ from osgeo.gdalconst import GA_ReadOnly, GDT_Float32
   
 def register(fn1, fn2, warpband, dims1=None, outfile=None):                  
     gdal.AllRegister()    
-    print '--------------------------------'
-    print'        Register'   
-    print'---------------------------------'      
-    print time.asctime()     
-    print 'reference image: '+fn1
-    print 'warp image: '+fn2     
-    print 'warp band: %i'%warpband  
+    print( '--------------------------------')
+    print('        Register')   
+    print('---------------------------------' )     
+    print( time.asctime() )    
+    print( 'reference image: '+fn1 )
+    print( 'warp image: '+fn2  )   
+    print( 'warp band: %i'%warpband )
     
     start =  time.time()              
     try:
@@ -46,7 +46,7 @@ def register(fn1, fn2, warpband, dims1=None, outfile=None):
             rows2 = inDataset2.RasterYSize    
             bands2 = inDataset2.RasterCount   
         except Exception as e:
-            print 'Error %s  --Image could not be read in'%e
+            print( 'Error %s  --Image could not be read in'%e )
             sys.exit(1)     
         if dims1 is None:
             x0 = 0
@@ -87,11 +87,11 @@ def register(fn1, fn2, warpband, dims1=None, outfile=None):
         inDataset1 = None
         inDataset2 = None
         outDataset = None    
-        print 'Warped image written to: %s'%outfile
-        print 'elapsed time: %s'%str(time.time()-start)
+        print( 'Warped image written to: %s'%outfile )
+        print( 'elapsed time: %s'%str(time.time()-start) )
         return outfile
     except Exception as e:
-        print 'registersms failed: %s'%e    
+        print( 'registersms failed: %s'%e ) 
         return None   
     
 def main(): 
@@ -134,15 +134,15 @@ dimensions of the reference image.
     dims1 = None
     for option, value in options:
         if option == '-h':
-            print usage
+            print( usage )
             return   
         elif option == '-b':
             warpband = eval(value)      
         elif option == '-d':
             dims1 = eval(value)    
     if len(args) != 2:
-        print 'Incorrect number of arguments'
-        print usage
+        print( 'Incorrect number of arguments' )
+        print( usage )
         sys.exit(1)      
     fn1 = args[0]  # reference
     fn2 = args[1]  # warp  

@@ -23,12 +23,12 @@ def subset(infile, dims=None, pos=None, outfile=None):
         basename = os.path.basename(infile)
         root, ext = os.path.splitext(basename)
         outfile = path+'/'+root+'_sub'+ext    
-    print '==========================='
-    print 'Spatial/spectral subsetting'
-    print '==========================='
-    print time.asctime()  
+    print( '===========================' )
+    print( 'Spatial/spectral subsetting' )
+    print(  '===========================' )
+    print( time.asctime()  ) 
     try:   
-        print 'Input %s'%infile
+        print( 'Input %s'%infile )
         start = time.time()    
         inDataset = gdal.Open(infile,GA_ReadOnly)                        
         cols = inDataset.RasterXSize
@@ -70,10 +70,10 @@ def subset(infile, dims=None, pos=None, outfile=None):
             outBand.FlushCache() 
         outDataset = None    
         inDataset = None        
-        print 'elapsed time: %s'%str(time.time()-start) 
+        print( 'elapsed time: %s'%str(time.time()-start) )
         return outfile
     except Exception as e:
-        print 'subset failed: %s'%e    
+        print( 'subset failed: %s'%e )   
         return None     
     
 def main(): 
@@ -98,15 +98,19 @@ Options:
     pos = None
     for option, value in options: 
         if option == '-h':
-            print usage
+            print( usage )
             return 
         elif option == '-d':
             dims = eval(value)  
         elif option == '-p':
             pos = eval(value)
+    if len(args) != 1:
+        print( 'Incorrect number of arguments' )
+        print( usage )
+        sys.exit(1)                 
     infile = args[0] 
     outfile = subset(infile,dims,pos)
-    print 'Subset image written to: %s' % outfile 
+    print( 'Subset image written to: %s' % outfile )
      
 if __name__ == '__main__':
     main() 

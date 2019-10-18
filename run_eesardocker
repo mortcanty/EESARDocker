@@ -1,4 +1,4 @@
 #!/bin/bash
 docker stop eesar
 docker rm eesar
-docker run -d -p 443:8888  --name=eesar  mort/eesardocker
+docker run -d -p 8888:8888 -v /home/mort/python/EESARDocker/src/myimagery:/home/myimagery --name=eesar  mort/eesardocker

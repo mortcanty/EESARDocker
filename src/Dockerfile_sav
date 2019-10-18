@@ -24,11 +24,24 @@ RUN     pip3 install --upgrade pip
 
 EXPOSE 8888
 
-COPY    requirements.txt /home 
-RUN     pip3 install -r /home/requirements.txt
-RUN     pip3 install --global-option=build_ext --global-option="-I/usr/include/gdal" GDAL==2.1.3
+#  Earthengine
+RUN     pip3 install pyasn1 --upgrade
+RUN     pip3 install --upgrade setuptools && \
+        pip3 install google-api-python-client && \
+        pip3 install --upgrade oauth2client && \
+        pip3 install pyCrypto && \
+        pip3 install earthengine-api
 
+# Jupyter and ipyleaflet
+RUN     pip3 install jupyter==1.0.0
+RUN     pip3 install ipyleaflet==0.9.0
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
+
+# GDAL und co.
+RUN     pip3 install --global-option=build_ext --global-option="-I/usr/include/gdal" GDAL==2.1.3
+RUN     pip3 install scipy
+RUN     pip3 install matplotlib
+RUN     pip3 install ipyparallel
 
 # setup the prov_means library
 COPY    prov_means.c /home/prov_means.c

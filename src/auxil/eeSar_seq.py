@@ -313,39 +313,56 @@ def on_run_button_clicked(b):
             mn = ee.Number(percentiles.get('b0_p2'))
             mx = ee.Number(percentiles.get('b0_p98'))        
             vorschau = collectionmean.visualize(min=mn, max=mx, opacity=w_opacity.value) 
-        else: # Assuming ALOS PALSAR!!!
+#         else: # Assuming ALOS PALSAR!!!
+#             txt = 'running on local collection ...\n' 
+#             
+#             coords = ee.List(poly.bounds().coordinates().get(0)) 
+#          
+#             collection = ee.ImageCollection(w_collection.value) \
+#                       .filterBounds(ee.Geometry.Point(coords.get(0))) \
+#                       .filterBounds(ee.Geometry.Point(coords.get(1))) \
+#                       .filterBounds(ee.Geometry.Point(coords.get(2))) \
+#                       .filterBounds(ee.Geometry.Point(coords.get(3))) \
+#                       .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value))
+#             
+#             count = collection.size().getInfo()  
+#             if count<2:
+#                 raise ValueError('Less than 2 images found')                
+# 
+#             
+#             collection = collection.map(get_hh)
+#        
+#             txt += 'Images found: %i'%count
+#             timestamplist1 = ['T%i'%(i+1) for i in range(count)]
+#             imList = collection.toList(100)
+#             
+#             first = ee.Dictionary({'imlist':ee.List([]),'poly':poly,'enl':ee.Number(w_enl.value)}) 
+#             imList = ee.Dictionary(imList.iterate(clipList,first)).get('imlist')
+#             
+#             collectionmean = collection.mean().select(0).clip(poly)
+#             collectionfirst = ee.Image(collection.first()).select(0).clip(poly).rename('b0')                      
+#             percentiles = collectionfirst.reduceRegion(ee.Reducer.percentile([0,98]),maxPixels=10e9)
+#             mn = ee.Number(percentiles.get('b0_p0'))
+#             mx = ee.Number(percentiles.get('b0_p98'))        
+#             vorschau = collectionmean.visualize(min=mn, max=mx, opacity=w_opacity.value) 
+        else:
             txt = 'running on local collection ...\n' 
-            
-            coords = ee.List(poly.bounds().coordinates().get(0)) 
-         
-            collection = ee.ImageCollection(w_collection.value) \
-                      .filterBounds(ee.Geometry.Point(coords.get(0))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(1))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(2))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(3))) \
-                      .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value))
-            
-            count = collection.size().getInfo()  
-            if count<2:
-                raise ValueError('Less than 2 images found')                
-
-            
-            collection = collection.map(get_hh)
-       
+            collection = ee.ImageCollection(w_collection.value)
+            count = collection.size().getInfo()                      
+            w_exportscale.value = str(collection.first().projection().nominalScale().getInfo())           
             txt += 'Images found: %i'%count
             timestamplist1 = ['T%i'%(i+1) for i in range(count)]
             imList = collection.toList(100)
-            
-            first = ee.Dictionary({'imlist':ee.List([]),'poly':poly,'enl':ee.Number(w_enl.value)}) 
-            imList = ee.Dictionary(imList.iterate(clipList,first)).get('imlist')
-            
-            collectionmean = collection.mean().select(0).clip(poly)
-            collectionfirst = ee.Image(collection.first()).select(0).clip(poly).rename('b0')                      
+            collectionmean = collection.mean().select(0)
+            collectionfirst = ee.Image(collection.first()).select(0).rename('b0')              
+            poly = collectionfirst.geometry()            
             percentiles = collectionfirst.reduceRegion(ee.Reducer.percentile([0,98]),maxPixels=10e9)
             mn = ee.Number(percentiles.get('b0_p0'))
             mx = ee.Number(percentiles.get('b0_p98'))        
             vorschau = collectionmean.visualize(min=mn, max=mx, opacity=w_opacity.value) 
-
+#          get GEE S1 archive crs for eventual image series export      
+            coords = ee.List(collectionfirst.geometry().bounds().coordinates().get(0))     
+        archive_crs = ee.Image(getS1collection(coords).first()).select(0).projection().crs().getInfo()
 #      run the algorithm        
         result = ee.Dictionary(omnibus(imList,w_significance.value,w_enl.value,w_median.value))
         w_preview.disabled = False

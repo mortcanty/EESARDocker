@@ -803,6 +803,6 @@ lu = '''
    0.00627995    0.0252333    0.0570250'''
 
 def table():  
-    lut = map(eval,lu.split())
+    lut = list(map(eval,lu.split()))
     lut = np.array(lut)
     return np.reshape(lut, (800,3))

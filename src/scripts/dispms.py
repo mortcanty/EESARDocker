@@ -11,7 +11,7 @@
 import sys, getopt, os
 from osgeo import gdal
 from osgeo.gdalconst import GA_ReadOnly
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
 from matplotlib import cm
 import numpy as np
 import auxil.auxil1 as auxil
@@ -67,14 +67,14 @@ def make_image(redband,greenband,blueband,rows,cols,enhance):
 def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,enhance=None,ENHANCE=None,sfn=None,cls=None,CLS=None,alpha=None,labels=None):
     gdal.AllRegister()
     if filename1 == None:        
-        filename1 = raw_input('Enter image filename: ')
+        filename1 = input('Enter image filename: ')
     inDataset1 = gdal.Open(filename1,GA_ReadOnly)    
     try:                   
         cols = inDataset1.RasterXSize    
         rows = inDataset1.RasterYSize  
         bands1 = inDataset1.RasterCount  
     except Exception as e:
-        print 'Error in dispms: %s  --could not read image file'%e
+        print( 'Error in dispms: %s  --could not read image file'%e )
         return   
     if filename2 is not None:                
         inDataset2 = gdal.Open(filename2,GA_ReadOnly) 
@@ -83,7 +83,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
             rows2 = inDataset2.RasterYSize            
             bands2 = inDataset2.RasterCount       
         except Exception as e:
-            print 'Error in dispms: %s  --could not read second image file'%e
+            print( 'Error in dispms: %s  --could not read second image file'%e )
             return       
     if dims == None:
         dims = [0,0,cols,rows]
@@ -122,7 +122,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
             enhance1 = 'linear'
         inDataset1 = None   
     except  Exception as e:
-        print 'Error in dispms: %s'%e  
+        print( 'Error in dispms: %s'%e  )
         return
     X1 = make_image(redband,greenband,blueband,rows,cols,enhance1)
     if filename2 is not None:
@@ -164,7 +164,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
                 enhance2 = 'linear'
             inDataset2 = None   
         except  Exception as e:
-            print 'Error in dispms: %s'%e  
+            print( 'Error in dispms: %s'%e )  
             return
         X2 = make_image(redband,greenband,blueband,rows,cols,enhance2)  
         if alpha is not None:
@@ -277,7 +277,7 @@ Options:
     labels = None
     for option, value in options: 
         if option == '-h':
-            print usage
+            print( usage )
             return 
         elif option == '-s':
             sfn = value

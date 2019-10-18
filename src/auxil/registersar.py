@@ -27,10 +27,10 @@ def register(file0, file1, dims=None, outfile=None):
     import scipy.ndimage.interpolation as ndii
     from osgeo.gdalconst import GA_ReadOnly, GDT_Float32
     
-    print '========================='
-    print '     Register SAR'
-    print '========================='
-    print time.asctime()      
+    print( '========================= ' )
+    print( '       Register SAR'        )
+    print( '========================='  )
+    print( time.asctime() )     
     try: 
         if outfile is None:
             path = os.path.abspath(file1)    
@@ -46,7 +46,7 @@ def register(file0, file1, dims=None, outfile=None):
         cols = inDataset0.RasterXSize
         rows = inDataset0.RasterYSize
         bands = inDataset0.RasterCount
-        print 'Reference SAR image:\n %s' % file0   
+        print( 'Reference SAR image:\n %s' % file0 )  
         if dims == None:
             dims = [0,0,cols,rows]
         x0,y0,cols,rows = dims 
@@ -55,9 +55,9 @@ def register(file0, file1, dims=None, outfile=None):
         cols1 = inDataset1.RasterXSize
         rows1 = inDataset1.RasterYSize  
         bands1 = inDataset1.RasterCount
-        print 'Target SAR image:\n %s' % file1      
+        print( 'Target SAR image:\n %s' % file1  )    
         if  bands != bands1:
-            print 'Number of bands must be equal'
+            print( 'Number of bands must be equal' )
             return 0
     #  create the output file 
         driver = inDataset1.GetDriver() 
@@ -89,7 +89,7 @@ def register(file0, file1, dims=None, outfile=None):
         span1 = rasterBand.ReadAsArray(x1, y1, cols, rows)
         if bands == 9:
     #      get warp parameters using span images         
-            print 'warping 9 bands (quad pol)...' 
+            print( 'warping 9 bands (quad pol)...' ) 
             rasterBand = inDataset0.GetRasterBand(6)
             span0 += rasterBand.ReadAsArray(x0, y0, cols, rows)
             rasterBand = inDataset0.GetRasterBand(9)
@@ -115,7 +115,7 @@ def register(file0, file1, dims=None, outfile=None):
                 outBand.FlushCache()
         elif bands == 4:
     #      get warp parameters using span images         
-            print 'warping 4 bands (dual pol)...' 
+            print( 'warping 4 bands (dual pol)...' )
             rasterBand = inDataset0.GetRasterBand(4)
             span0 += rasterBand.ReadAsArray(x0, y0, cols, rows)
             span0 = np.log(np.nan_to_num(span0)+0.001)                                   
@@ -137,7 +137,7 @@ def register(file0, file1, dims=None, outfile=None):
                 outBand.FlushCache()           
         elif bands ==3:
     #      get warp parameters using span images         
-            print 'warping 3 bands (quad pol diagonal)...' 
+            print( 'warping 3 bands (quad pol diagonal)...' ) 
             rasterBand = inDataset0.GetRasterBand(2)
             span0 += rasterBand.ReadAsArray(x0, y0, cols, rows)
             rasterBand = inDataset0.GetRasterBand(3)
@@ -163,7 +163,7 @@ def register(file0, file1, dims=None, outfile=None):
                 outBand.FlushCache()            
         elif bands == 2:
     #      get warp parameters using span images         
-            print 'warping 2 bands (dual pol diagonal)...' 
+            print( 'warping 2 bands (dual pol diagonal)...' ) 
             rasterBand = inDataset0.GetRasterBand(2)
             span0 += rasterBand.ReadAsArray(x0, y0, cols, rows)
             span0 = np.log(np.nan_to_num(span0)+0.001)                                   
@@ -185,7 +185,7 @@ def register(file0, file1, dims=None, outfile=None):
                 outBand.FlushCache()            
         elif bands == 1:
     #      get warp parameters using span images         
-            print 'warping 1 band (single pol)...' 
+            print( 'warping 1 band (single pol)...' ) 
             span0 = np.log(np.nan_to_num(span0)+0.001)                                   
             span1 = np.log(np.nan_to_num(span1)+0.001)                           
             scale, angle, shift = auxil.similarity(span0, span1)   
@@ -204,11 +204,11 @@ def register(file0, file1, dims=None, outfile=None):
         inDataset0 = None
         inDataset1 = None
         outDataset = None    
-        print 'Warped image written to: %s'%outfile
-        print 'elapsed time: ' + str(time.time() - start)  
+        print( 'Warped image written to: %s'%outfile )
+        print( 'elapsed time: ' + str(time.time() - start)  )
         return outfile
     except Exception as e:
-        print 'registersar failed: %s'%e    
+        print( 'registersar failed: %s'%e )    
         return None     
     
 
@@ -250,13 +250,13 @@ dimensions of the reference image.
     dims = None
     for option, value in options: 
         if option == '-h':
-            print usage
+            print( usage )
             return 
         elif option == '-d':
             dims = eval(value)          
     if len(args) != 2:
-        print 'Incorrect number of arguments'
-        print usage
+        print( 'Incorrect number of arguments' )
+        print( usage )
         sys.exit(1)        
     fn0 = args[0]
     fn1 = args[1]

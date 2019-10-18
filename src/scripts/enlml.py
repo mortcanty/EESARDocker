@@ -55,15 +55,15 @@ An ENL image will be written to the same directory with '_enl' appended.
     graphics = True
     for option, value in options: 
         if option == '-h':
-            print usage
+            print( usage )
             return 
         elif option == '-d':
             dims = eval(value)  
         elif option == '-n':
             graphics = False       
     if len(args) != 1:
-        print 'Incorrect number of arguments'
-        print usage
+        print( 'Incorrect number of arguments' )
+        print( usage )
         sys.exit(1)        
     infile = args[0]
     path = os.path.dirname(infile)    
@@ -79,13 +79,13 @@ An ENL image will be written to the same directory with '_enl' appended.
     if dims == None:
         dims = [0,0,cols,rows]
     x0,y0,cols,rows = dims        
-    print '========================='
-    print '     ENL Estimation'
-    print '========================='
-    print time.asctime()
-    print 'infile:  %s'%infile   
+    print( '=========================' )
+    print( '     ENL Estimation' )
+    print( '=========================' )
+    print( time.asctime() )
+    print( 'infile:  %s'%infile )   
     if bands == 9:
-        print 'Quad polarimetry'  
+        print( 'Quad polarimetry' )  
 #      T11 (k)
         band = inDataset.GetRasterBand(1)
         k = np.nan_to_num(band.ReadAsArray(x0,y0,cols,rows)).ravel()
@@ -116,7 +116,7 @@ An ENL image will be written to the same directory with '_enl' appended.
         det = k*xsi*zeta + 2*np.real(a*b*np.conj(rho)) - xsi*(abs(rho)**2) - k*(abs(b)**2) - zeta*(abs(a)**2)
         d = 2
     elif bands == 4:
-        print 'Dual polarimetry'  
+        print( 'Dual polarimetry' )  
 #      C11 (k)
         band = inDataset.GetRasterBand(1)
         k = np.nan_to_num(band.ReadAsArray(x0,y0,cols,rows)).ravel()
@@ -132,7 +132,7 @@ An ENL image will be written to the same directory with '_enl' appended.
         det = k*xsi - abs(a)**2   
         d = 1   
     elif bands <= 3:
-        print 'Diagonal-only polarimetry'         
+        print( 'Diagonal-only polarimetry' )         
 #      C11 (k)
         band = inDataset.GetRasterBand(1)
         k = band.ReadAsArray(x0,y0,cols,rows).ravel() 
@@ -140,13 +140,13 @@ An ENL image will be written to the same directory with '_enl' appended.
         d = 0      
     enl_ml = np.zeros((rows,cols), dtype= np.float32)
     lu = lookup.table()
-    print 'filtering...'
-    print 'row: ',
+    print( 'filtering...' )
+    print( 'row: ', )
     sys.stdout.flush()    
     start = time.time()
     for i in range(3,rows-3):
         if i%100 == 0:
-            print '%i '%i, 
+            print( '%i '%i, ) 
             sys.stdout.flush()
         windex = get_windex(i,cols)  
         for j in range(3,cols-3):  
@@ -195,8 +195,8 @@ An ENL image will be written to the same directory with '_enl' appended.
         plt.plot(xa[0:-1],ya)
         plt.title('Histogram ENL for %s'%infile)
         plt.show()       
-    print 'ENL image written to: %s'%outfile             
-    print 'elapsed time: '+str(time.time()-start)                    
+    print( 'ENL image written to: %s'%outfile )             
+    print( 'elapsed time: '+str(time.time()-start) )                    
         
 if __name__ == '__main__':
     main()
