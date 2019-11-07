@@ -14,13 +14,14 @@ def chi2cdf(chi2,df):
     return ee.Image(chi2.divide(2)).gammainc(ee.Number(df).divide(2))
 
 def det(image):
-    '''return determinant of 1, 2, 4, or 9-band polarimetric image ''' 
+    '''return determinant of 1, 2, 3, 4, or 9-band polarimetric image ''' 
     detmap = {'k':image.select(0),'ar':image.select(1),'ai':image.select(2),'pr':image.select(3),'pi':image.select(4),
               's':image.select(5),'br':image.select(6),'bi':image.select(7),'z':image.select(8)}
     expr = 'k*s*z+2*(ar*br*pr-ai*bi*pr+ai*br*pi+ar*bi*pi)-s*(pr*pr+pi*pi)-k*(br*br+bi*bi)-s*(ar*ar+ai*ai)'
     bands = image.bandNames().length()
     result = ee.Image(ee.Algorithms.If(bands.eq(1),image,None))
     result = ee.Image(ee.Algorithms.If(bands.eq(2),image.expression('b(0)*b(1)'),result))
+    result = ee.Image(ee.Algorithms.If(bands.eq(3),image.expression('b(0)*b(1)*b(2)'),result))
     result = ee.Image(ee.Algorithms.If(bands.eq(4),image.expression('b(0)*b(3)-b(1)*b(1)-b(2)*b(2)'),result))
     return ee.Image(ee.Algorithms.If(bands.eq(9),image.expression(expr,detmap),result))
 
@@ -72,11 +73,11 @@ def pv(imList,median,j,enl):
                  .subtract(p.multiply(j.subtract(1)).multiply(j.subtract(1).log())) \
                  .subtract(ee.Image(log_det_sum(imList,j)).multiply(j)) \
                  .multiply(-2).multiply(enl)
-# (1.-omega2j)*stats.chi2.cdf(rhoj*Zj,[f])+omega2j*stats.chi2.cdf(rhoj*Zj,[f+4])                 
+#  (1.-omega2j)*stats.chi2.cdf(rhoj*Zj,[f])+omega2j*stats.chi2.cdf(rhoj*Zj,[f+4])                 
     P = chi2cdf(Zj.multiply(rhoj),f).multiply(one.subtract(omega2j)) \
                  .add(chi2cdf(Zj.multiply(rhoj),f.add(4)).multiply(omega2j))
     PV = ee.Image.constant(1.0).subtract(P)
-# 3x3 median filter    
+#  3x3 median filter    
     return (ee.Algorithms.If(median, PV.focal_median(), PV),Zj)    
 
 def js_iter(current,prev):
@@ -88,7 +89,7 @@ def js_iter(current,prev):
     pvs = ee.List(prev.get('pvs'))
     Z = ee.Image(prev.get('Z')) 
     pval,Zj = pv(imList,median,j,enl)  
-# Z = sum_j Zj = -2lnQ_ell  
+#  Z = sum_j Zj = -2lnQ_ell  
     Z = Z.add(Zj)
     return ee.Dictionary({'median':median,'imList':imList,'enl':enl,'pvs':pvs.add(pval),'Z':Z})   
 

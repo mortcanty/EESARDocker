@@ -41,13 +41,6 @@ def get_incidence_angle(image):
            .get('angle') \
            .getInfo(),2)
 
-# for ALOS PALSAR !!!!!!!!!!!!!!!!!!!!!!!       
-def get_hh(image):
-    sig0 = image.select(0).pow(2) \
-                  .reproject(crs='EPSG:4326',scale=30) \
-                  .set('system:time_start', image.get('system:time_start'))
-    return sig0        
-
 def get_vvvh(image):   
     ''' get 'VV' and 'VH' bands from sentinel-1 imageCollection and restore linear signal from db-values '''
     return image.select('VV','VH').multiply(ee.Image.constant(math.log(10.0)/10.0)).exp()
@@ -297,6 +290,7 @@ def on_run_button_clicked(b):
             rons = list(set(relativeorbitnumbers))
             txt = 'running on GEE archive ...'
             txt += 'Images found: %i, platform: %s \n'%(count,w_platform.value)
+            txt += 'Number of 10m pixels contained: %i \n'%math.floor(poly.area().getInfo()/100.0)
             txt += 'Acquisition dates: %s\n'%str(timestamplist)
             txt += 'Relative orbit numbers: '+str(rons)+'\n'
             if len(rons)==1:
@@ -313,55 +307,37 @@ def on_run_button_clicked(b):
             mn = ee.Number(percentiles.get('b0_p2'))
             mx = ee.Number(percentiles.get('b0_p98'))        
             vorschau = collectionmean.visualize(min=mn, max=mx, opacity=w_opacity.value) 
-#         else: # Assuming ALOS PALSAR!!!
-#             txt = 'running on local collection ...\n' 
-#             
-#             coords = ee.List(poly.bounds().coordinates().get(0)) 
-#          
-#             collection = ee.ImageCollection(w_collection.value) \
-#                       .filterBounds(ee.Geometry.Point(coords.get(0))) \
-#                       .filterBounds(ee.Geometry.Point(coords.get(1))) \
-#                       .filterBounds(ee.Geometry.Point(coords.get(2))) \
-#                       .filterBounds(ee.Geometry.Point(coords.get(3))) \
-#                       .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value))
-#             
-#             count = collection.size().getInfo()  
-#             if count<2:
-#                 raise ValueError('Less than 2 images found')                
-# 
-#             
-#             collection = collection.map(get_hh)
-#        
-#             txt += 'Images found: %i'%count
-#             timestamplist1 = ['T%i'%(i+1) for i in range(count)]
-#             imList = collection.toList(100)
-#             
-#             first = ee.Dictionary({'imlist':ee.List([]),'poly':poly,'enl':ee.Number(w_enl.value)}) 
-#             imList = ee.Dictionary(imList.iterate(clipList,first)).get('imlist')
-#             
-#             collectionmean = collection.mean().select(0).clip(poly)
-#             collectionfirst = ee.Image(collection.first()).select(0).clip(poly).rename('b0')                      
-#             percentiles = collectionfirst.reduceRegion(ee.Reducer.percentile([0,98]),maxPixels=10e9)
-#             mn = ee.Number(percentiles.get('b0_p0'))
-#             mx = ee.Number(percentiles.get('b0_p98'))        
-#             vorschau = collectionmean.visualize(min=mn, max=mx, opacity=w_opacity.value) 
         else:
-            txt = 'running on local collection ...\n' 
+            txt = 'running on local collection %s ...\n'%w_collection.value 
             collection = ee.ImageCollection(w_collection.value)
-            count = collection.size().getInfo()                      
-            w_exportscale.value = str(collection.first().projection().nominalScale().getInfo())           
-            txt += 'Images found: %i'%count
-            timestamplist1 = ['T%i'%(i+1) for i in range(count)]
-            imList = collection.toList(100)
+            count = collection.size().getInfo()  
+            txt += 'Images found: %i\n'%count           
+            collectionfirst = ee.Image(collection.first())  
+            poly = collectionfirst.geometry()   
+            coords = ee.List(poly.bounds().coordinates().get(0))   
+            center = poly.centroid().coordinates().getInfo()
+            center.reverse()
+            m.center = center                
+            w_exportscale.value = str(collectionfirst.projection().nominalScale().getInfo()) 
+            if collectionfirst.get('system:time_start').getInfo() is not None:
+                acquisition_times = ee.List(collection.aggregate_array('system:time_start')).getInfo()  
+                timestamplist1 = []
+                for timestamp in acquisition_times:
+                    tmp = time.gmtime(int(timestamp)/1000)
+                    timestamplist1.append(time.strftime('%x', tmp))            
+                timestamplist1 = [x.replace('/','') for x in timestamplist1]  
+                timestamplist1 = ['T20'+x[4:]+x[0:4] for x in timestamplist1]    
+                txt += 'Acquisition dates: %s'%str(timestamplist1)    
+            else:
+                timestamplist1 = ['T%i'%(i+1) for i in range(count)]
+                txt += 'No time property available: acquisitions: %s'%str(timestamplist1)
             collectionmean = collection.mean().select(0)
-            collectionfirst = ee.Image(collection.first()).select(0).rename('b0')              
-            poly = collectionfirst.geometry()            
-            percentiles = collectionfirst.reduceRegion(ee.Reducer.percentile([0,98]),maxPixels=10e9)
+            percentiles = collectionfirst.select(0).rename('b0').reduceRegion(ee.Reducer.percentile([0,98]),maxPixels=10e9)
             mn = ee.Number(percentiles.get('b0_p0'))
             mx = ee.Number(percentiles.get('b0_p98'))        
-            vorschau = collectionmean.visualize(min=mn, max=mx, opacity=w_opacity.value) 
-#          get GEE S1 archive crs for eventual image series export      
-            coords = ee.List(collectionfirst.geometry().bounds().coordinates().get(0))     
+            vorschau = collectionmean.visualize(min=mn, max=mx, opacity=w_opacity.value)           
+            imList = collection.toList(100)
+#      get GEE S1 archive crs for eventual image series export               
         archive_crs = ee.Image(getS1collection(coords).first()).select(0).projection().crs().getInfo()
 #      run the algorithm        
         result = ee.Dictionary(omnibus(imList,w_significance.value,w_enl.value,w_median.value))
@@ -458,7 +434,7 @@ def on_export_ass_button_clicked(b):
                                    .clip(poly) \
                                    .select('B8') 
             timestamp = background.get('system:time_start').getInfo()
-            timestamp = time.gmtime(int(timestamp)/5000)
+            timestamp = time.gmtime(int(timestamp)/1000)
             timestamp = time.strftime('%x', timestamp)
             bgname = 'sentinel-2 '+ str(timestamp) 
             background = background.divide(10000)
@@ -556,7 +532,7 @@ def on_export_drv_button_clicked(b):
             background = background.divide(10000)
     cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])  
     fileNamePrefix=w_exportdrivename.value.replace('/','-')            
-    gdexport = ee.batch.Export.image.toDrive(cmaps,
+    gdexport = ee.batch.Export.image.toDrive(cmaps.byte(),
                                 description='driveExportTask', 
                                 folder = 'EarthEngineImages',
                                 fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   

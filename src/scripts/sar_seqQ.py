@@ -39,10 +39,28 @@ def getimg(fn):
         for k in range(bands):
             result[:,k] = inDataset.GetRasterBand(k+1).ReadAsArray(0,0,cols,rows).ravel()
         inDataset = None    
-        return result  
+        return np.nan_to_num(result)  
     except Exception as e:
         print( 'Error: %s  -- Could not read file'%e )
-        sys.exit(1)        
+        sys.exit(1)    
+        
+def det(img):            
+    '''return determinant of 1, 2, 3, 4, or 9-band polarimetric image '''
+    bands = img.shape[1]
+    if bands==1:
+        return img
+    elif bands==2:
+        return img[:,0]*img[:,1]
+    elif bands==3:
+        return img[:,0]*img[:,1]*img[:,2]
+    elif bands==4:
+        return img[:,0]*img[:,3] - img[:,1]**2 - img[:,2]**2
+    else:
+        return img[:,0]*img[:,5]*img[:8] + \
+               2*(img[:,1]*img[:,6]*img[:,3] + img[:,2]*img[:,7]*img[:,3] + img[:,2]*img[:,6]*img[:,4] + img[:,1]*img[:,7]*img[:,4]) - \
+               img[:,5]*(img[:,3]**2 + img[:,4]**2) - \
+               img[:,0]*(img[:,6]**2 + img[:,7]**2) - \
+               img[:,5]*(img[:,1]**2 + img[:,2]**2) 
         
 def loewner(img):  
     ''' return Loewner direction image: 1 positive definite
@@ -57,14 +75,12 @@ def loewner(img):
         dmy = np.where(np.min(img,1)>0,dir1,dir3)
         result = np.where(np.max(img,1)<0,dir2,dmy)
     elif bands == 4:
-#      eivs = b(0) + b(1) +- ((b(0)-b(3))**2 + 4.0*(b(1)**2+b(2)**2))**0.5        
-        disc = ( (img[:,0]-img[:,3])**2 + 4.0*(img[:,1]**2 + img[:,2]**2) )**0.5
-        eivs = np.zeros((img.shape[0],2))
-        eivs[:,0] = img[:,0]+img[:,3] + disc
-        eivs[:,1] = img[:,0]+img[:,3] - disc
-        dmy = np.where(np.min(eivs,1)>0,dir1,dir3)
-        result = np.where(np.max(eivs,1)<0,dir2,dmy)      
-    return result
+        result = np.where(det(img[:,0])>0 and det(img)>0,dir1,dir3)
+        result = np.where(det(img[:,0])<0 and det(img)<0,dir2,result)
+    elif bands == 9:
+        result = np.where(det(img[:,0])>0 and det(img[:,[0,1,2,5]])>0 and det(img),dir1,dir3)
+        result = np.where(det(img[:,0])<0 and det(img[:,[0,1,2,5]])<0 and det(img)<0,dir2,result)    
+    return result    
          
 def PV(arg5):
     '''Return p-values for change indices R^ell_j'''        
@@ -264,7 +280,7 @@ def change_maps(pvarray,significance):
             bmap[idx,j] = 1 
             if ell==0:
                 smap[idx] = j+1    
-    return (cmap,smap,fmap,bmap)
+    return (cmap,smap,fmap,bmap) 
 
 def getpvQ(lnQ,bands,k,n):
     import math
@@ -378,7 +394,7 @@ enl:
         except Exception as e: 
             start1 = time.time()
             print( '%s \nFailed, so running sequential co-registration ...'%e )
-            fns = map(call_register,args1)  
+            fns = list(map(call_register,args1))  
         fns.insert(0,fn0)  
 #      point inDataset1 to the subset image for correct georefrerencing         
         inDataset1 = gdal.Open(fn0,GA_ReadOnly)           
@@ -414,11 +430,9 @@ enl:
         c = Client()
         print( 'available engines %s'%str(c.ids) )
         v = c[:]   
-        print( 'ell = ', )
-        sys.stdout.flush()      
+        print( 'ell = ', flush=True )     
         for i in range(k-1):  
-            print( i+1, )  
-            sys.stdout.flush()              
+            print( i+1, flush=True )               
             args1 = [(fns[i:j+2],n,cols,rows,bands) for j in range(i,k-1)]         
             results = v.map_sync(PV,args1) # list of tuples (p-value, lnRj)
             pvs = [result[0] for result in results] 
@@ -432,11 +446,9 @@ enl:
             pvarray[i,k-1,:] = pvQ.ravel()    
     except Exception as e: 
         print( '%s \nfailed, so running sequential calculation ...'%e )  
-        print( 'ell= ', )
-        sys.stdout.flush()  
+        print( 'ell= ', flush=True)  
         for i in range(k-1):        
-            print( i+1, )   
-            sys.stdout.flush()             
+            print( i+1, flush=True)   
             args1 = [(fns[i:j+2],n,cols,rows,bands) for j in range(i,k-1)]                         
             results = map(PV,args1)  # list of tuples (p-value, lnRj)
             pvs = [result[0] for result in results] 
@@ -449,6 +461,7 @@ enl:
                 pvarray[i,j,:] = pvs[j-i].ravel() 
             pvarray[i,k-1,:] = pvQ.ravel()  
     print( '\nelapsed time for p-value calculation: '+str(time.time()-start1) )    
+    
     cmap,smap,fmap,bmap = change_maps(pvarray,significance)    
 #  post process bmap for Loewner direction   
     avimg = getimg(fns[0])

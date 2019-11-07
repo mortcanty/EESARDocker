@@ -175,7 +175,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
                 if labels is not None:
                     ticklabels = labels
                 else:                    
-                    ticklabels = map(str,range(0,num_classes+1)) 
+                    ticklabels = list(map(str,range(0,num_classes+1))) 
                 X1[X1 == 0] = np.nan
                 cmap = cm.get_cmap('jet')
                 cmap.set_bad(alpha=0)
@@ -213,7 +213,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
             if labels is not None:
                 ticklabels = labels
             else:                    
-                ticklabels = map(str,range(0,num_classes+1))  
+                ticklabels = list(map(str,range(0,num_classes+1)))  
             cmap = cm.get_cmap('jet')
             cmap.set_under('black')
             cax = ax.imshow(X1[:,:,0]-0.01,cmap=cmap)  

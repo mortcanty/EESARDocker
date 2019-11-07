@@ -1,0 +1,53 @@
+# Dockerfile with Jupyter widget interface for 
+# Sequential SAR on Earth Engine, Raspberry Pi
+
+FROM     balenalib/rpi-raspbian:stretch
+           
+MAINTAINER Mort Canty "mort.canty@gmail.com"
+ENV     REFRESHED_AT 2019-08-01
+
+RUN apt-get update && apt-get install -y \
+    python3 \
+    build-essential \
+    python3-dev \
+    libffi-dev \
+    python3-pygments \
+    libzmq3-dev \
+    pkg-config \
+    python3-pip 
+
+# jupyter notebook with leaflet
+RUN     pip3 install --upgrade pip
+RUN     pip3 install jupyter==1.0
+RUN     pip3 install ipyleaflet==0.9.0
+RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
+
+EXPOSE 8888
+
+# setup for earthengine
+RUN     pip3 install pyasn1 --upgrade
+RUN     pip3 install --upgrade setuptools && \
+        pip3 install google-api-python-client && \
+        pip3 install --upgrade oauth2client && \
+        pip3 install pyCrypto && \
+        apt-get install -y libssl-dev
+RUN     pip3 install earthengine-api
+
+# install auxil
+COPY    dist/auxil-1.0.tar.gz /home/auxil-1.0.tar.gz
+WORKDIR /home
+RUN     tar -xzvf auxil-1.0.tar.gz
+WORKDIR /home/auxil-1.0
+RUN     python3 setup.py install  
+WORKDIR /home
+RUN     rm -rf auxil-1.0
+RUN     rm auxil-1.0.tar.gz
+
+COPY    interface.ipynb /home/interface.ipynb
+
+# ipython notebook startup script
+COPY    notebook.sh /
+RUN     chmod u+x /notebook.sh
+
+WORKDIR /home  
+CMD     ["/notebook.sh"]
