@@ -163,7 +163,7 @@ w_median = widgets.Checkbox(
 )
 w_S2 = widgets.Checkbox(
     value=True,
-    description='Use best S2',
+    description='Show best S2',
     disabled=False
 )
 w_Q = widgets.Checkbox(
@@ -495,7 +495,8 @@ def on_export_ass_button_clicked(b):
             gdexport1 = ee.batch.Export.image.toDrive(image,
                                                       description='driveExportTask_series_'+pad+str(i), 
                                                       folder = 'EarthEngineImages',
-                                                      fileNamePrefix = fileNamePrefix+'_'+pad+str(i),
+                                                      fileNamePrefix = fileNamePrefix+'-'+timestamplist1[i],
+                                                     # fileNamePrefix = fileNamePrefix+'_'+pad+str(i),
                                                       crs = archive_crs,
                                                       scale = w_exportscale.value,
                                                       maxPixels = 1e10)
@@ -538,6 +539,7 @@ def on_export_drv_button_clicked(b):
                                 fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
     w_text.value= 'Exporting change maps to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)) 
     gdexport.start()  
+    
     
 #  export metadata to drive
     if w_collection.value == 'COPERNICUS/S1_GRD': 
