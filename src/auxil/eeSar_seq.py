@@ -139,11 +139,6 @@ w_exportscale = widgets.Text(
     description='Scale ',
     disabled=False
 )
-w_series = widgets.Checkbox(
-    value=False,
-    description='Export series to drive',
-    disabled=False
-)
 w_startdate = widgets.Text(
     value='2018-04-01',
     placeholder=' ',
@@ -212,10 +207,11 @@ w_run = widgets.Button(description="Collect")
 w_preview = widgets.Button(description="Preview",disabled=True)
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
+w_export_series = widgets.Button(description='ExportSeries',disabled=True)
 w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate])
 w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
-w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_series])
+w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
 w_rse = widgets.HBox([w_run,w_preview])
 
@@ -225,6 +221,7 @@ def on_widget_change(b):
     w_preview.disabled = True
     w_export_ass.disabled = True
     w_export_drv.disabled = True
+    w_export_series.disabled = True
 
 w_orbitpass.observe(on_widget_change,names='value')
 w_platform.observe(on_widget_change,names='value')
@@ -259,7 +256,7 @@ def getS2collection(coords):
  
 
 def on_run_button_clicked(b):
-    global result,m,collection,poly,imList,count,timestamplist1, \
+    global result,m,collection,poly,imList,count,timestamplist1,timestamps2, \
            w_startdate,w_enddate,w_orbitpass,w_changemap,s2_image, \
            w_relativeorbitnumber,w_significance,w_median,w_Q, \
            mean_incidence,collectionmean,archive_crs,coords
@@ -359,8 +356,8 @@ def on_run_button_clicked(b):
                 timestamp = s2_image.get('system:time_start').getInfo() 
                 timestamp = time.gmtime(int(timestamp)/1000)
                 timestamp = time.strftime('%x', timestamp).replace('/','')
-                timestamp = '20'+timestamp[4:]+timestamp[0:4]
-                txt += '\nSentinel-2 from %s'%timestamp
+                timestamps2 = '20'+timestamp[4:]+timestamp[0:4]
+                txt += '\nSentinel-2 from %s'%timestamps2
         w_text.value = txt           
         m.add_layer(TileLayer(url=GetTileLayerUrl(vorschau)))
     except Exception as e:
@@ -418,6 +415,7 @@ def on_preview_button_clicked(b):
     m.add_layer(TileLayer(url=GetTileLayerUrl(mp.visualize(min=0, max=mx, palette=palette,opacity = w_opacity.value))))
     w_export_ass.disabled = False
     w_export_drv.disabled = False
+    w_export_series.disabled = False
     
 w_preview.on_click(on_preview_button_clicked)   
 
@@ -482,35 +480,7 @@ def on_export_ass_button_clicked(b):
                          folder = 'EarthEngineImages',
                          fileNamePrefix=fileNamePrefix )
     w_text.value += '\n Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))            
-    gdexport.start()         
-    if w_series.value == True:
-        imlist = ee.List(imList)
-        w_text.value += '\n Exporting time series of %i images to Drive'%count
-        for i in range(count):
-            if i<10:
-                pad = '0'
-            else:
-                pad = ''
-            image = ee.Image(imlist.get(i))
-            gdexport1 = ee.batch.Export.image.toDrive(image,
-                                                      description='driveExportTask_series_'+pad+str(i), 
-                                                      folder = 'EarthEngineImages',
-                                                      fileNamePrefix = fileNamePrefix+'-'+timestamplist1[i],
-                                                     # fileNamePrefix = fileNamePrefix+'_'+pad+str(i),
-                                                      crs = archive_crs,
-                                                      scale = w_exportscale.value,
-                                                      maxPixels = 1e10)
-            gdexport1.start()  
-        if s2_image is not None:
-            w_text.value += '\n Exporting s2 image to Drive'
-            gdexport2 = ee.batch.Export.image.toDrive(s2_image,
-                                                      description='driveExportTask_s2', 
-                                                      folder = 'EarthEngineImages',
-                                                      fileNamePrefix = fileNamePrefix+'_s2',
-                                                      crs = archive_crs,
-                                                      scale = w_exportscale.value,
-                                                      maxPixels = 1e10)
-            gdexport2.start()                                                            
+    gdexport.start()                                             
     
 w_export_ass.on_click(on_export_ass_button_clicked) 
 
@@ -538,9 +508,7 @@ def on_export_drv_button_clicked(b):
                                 folder = 'EarthEngineImages',
                                 fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
     w_text.value= 'Exporting change maps to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)) 
-    gdexport.start()  
-    
-    
+    gdexport.start()   
 #  export metadata to drive
     if w_collection.value == 'COPERNICUS/S1_GRD': 
         times = [timestamp[1:9] for timestamp in timestamplist1]
@@ -578,35 +546,38 @@ def on_export_drv_button_clicked(b):
                          fileNamePrefix=fileNamePrefix )
     w_text.value += '\n Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))            
     gdexport.start()         
-    if w_series.value == True:
-        imlist = ee.List(imList)
-        w_text.value += '\n Exporting time series of %i images to Drive'%count
-        for i in range(count):
-            if i<10:
-                pad = '0'
-            else:
-                pad = ''
-            image = ee.Image(imlist.get(i))
-            gdexport1 = ee.batch.Export.image.toDrive(image,
-                                                      description='driveExportTask_series_'+pad+str(i), 
-                                                      folder = 'EarthEngineImages',
-                                                      fileNamePrefix = fileNamePrefix+'_'+pad+str(i),
-                                                      crs = archive_crs,
-                                                      scale = w_exportscale.value,
-                                                      maxPixels = 1e10)
-            gdexport1.start()  
-        if s2_image is not None:
-            w_text.value += '\n Exporting s2 image to Drive'
-            gdexport2 = ee.batch.Export.image.toDrive(s2_image,
-                                                      description='driveExportTask_s2', 
-                                                      folder = 'EarthEngineImages',
-                                                      fileNamePrefix = fileNamePrefix+'_s2',
-                                                      crs = archive_crs,
-                                                      scale = w_exportscale.value,
-                                                      maxPixels = 1e10)
-            gdexport2.start()                                                            
-    
+
 w_export_drv.on_click(on_export_drv_button_clicked) 
+
+def on_export_series_button_clicked(b):
+    imlist = ee.List(imList)
+    w_text.value = 'Exporting time series of %i images to Drive'%count
+    for i in range(count):
+        if i<10:
+            pad = '0'
+        else:
+            pad = ''
+        image = ee.Image(imlist.get(i))
+        gdexport1 = ee.batch.Export.image.toDrive(image,
+                                                  description='driveExportTask_series_'+pad+str(i), 
+                                                  folder = 'EarthEngineImages',
+                                                  fileNamePrefix = timestamplist1[i],
+                                                  crs = archive_crs,
+                                                  scale = w_exportscale.value,
+                                                  maxPixels = 1e10)
+        gdexport1.start()  
+    if s2_image is not None:
+        w_text.value += '\n Exporting s2 image to Drive'
+        gdexport2 = ee.batch.Export.image.toDrive(s2_image,
+                                                  description='driveExportTask_s2', 
+                                                  folder = 'EarthEngineImages',
+                                                  fileNamePrefix = 'T'+timestamps2+'_s2',
+                                                  crs = archive_crs,
+                                                  scale = w_exportscale.value,
+                                                  maxPixels = 1e10)
+        gdexport2.start()          
+            
+w_export_series.on_click(on_export_series_button_clicked)                           
 
 def run():
     global m,dc,center
