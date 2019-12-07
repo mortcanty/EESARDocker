@@ -10,9 +10,9 @@ imdir=("${@: -3}")
 
 # echo $1
 
-fns=$(ls -l $imdir | grep $1 | grep -v enl.tif  | grep -v warp.tif | grep -v sub.tif | awk '{print $9}')
+fns=$(ls -l $imdir | grep $1 | grep _ | awk '{print $9}')
      
-# echo ${fns//$1/$imdir$1}    
+echo ${fns//$1/$imdir$1}    
      
-python scripts/sar_seqQ.py -s $alpha -d [100,100,2220,1660] \
+python scripts/sar_seqQ.py -s $alpha   \
                      ${fns//$1/$imdir$1} dualpol.tif $enl 

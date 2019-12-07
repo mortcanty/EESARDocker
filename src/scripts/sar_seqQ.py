@@ -56,7 +56,7 @@ def det(img):
     elif bands==4:
         return img[:,0]*img[:,3] - img[:,1]**2 - img[:,2]**2
     else:
-        return img[:,0]*img[:,5]*img[:8] + \
+        return img[:,0]*img[:,5]*img[:,8] + \
                2*(img[:,1]*img[:,6]*img[:,3] + img[:,2]*img[:,7]*img[:,3] + img[:,2]*img[:,6]*img[:,4] + img[:,1]*img[:,7]*img[:,4]) - \
                img[:,5]*(img[:,3]**2 + img[:,4]**2) - \
                img[:,0]*(img[:,6]**2 + img[:,7]**2) - \
@@ -75,11 +75,11 @@ def loewner(img):
         dmy = np.where(np.min(img,1)>0,dir1,dir3)
         result = np.where(np.max(img,1)<0,dir2,dmy)
     elif bands == 4:
-        result = np.where(det(img[:,0])>0 and det(img)>0,dir1,dir3)
-        result = np.where(det(img[:,0])<0 and det(img)<0,dir2,result)
+        result = np.where( (img[:,0]>0) & (det(img)>0),dir1,dir3 )
+        result = np.where( (img[:,0]<0) & (det(img)<0) ,dir2,result )
     elif bands == 9:
-        result = np.where(det(img[:,0])>0 and det(img[:,[0,1,2,5]])>0 and det(img),dir1,dir3)
-        result = np.where(det(img[:,0])<0 and det(img[:,[0,1,2,5]])<0 and det(img)<0,dir2,result)    
+        result = np.where( (img[:,0]>0) & (det(img[:,[0,1,2,5]])>0) & (det(img)>0),dir1,dir3 )
+        result = np.where( (img[:,0]<0) & (det(img[:,[0,1,2,5]])<0) & (det(img)<0),dir2,result )    
     return result    
          
 def PV(arg5):
@@ -260,7 +260,7 @@ def PV(arg5):
 
 def change_maps(pvarray,significance):
     import numpy as np
-    k = pvarray.shape[0]
+    k = pvarray.shape[0] 
     n = pvarray.shape[2]
 #  map of most recent change occurrences
     cmap = np.zeros(n,dtype=np.byte)    
@@ -271,10 +271,10 @@ def change_maps(pvarray,significance):
 #  bitemporal change maps
     bmap = np.zeros((n,k-1),dtype=np.byte)  
     for ell in range(k-1):        
-        pvQ = pvarray[ell,k-1,:]          
-        for j in range(ell,k-1):
-            pv = pvarray[ell,j,:]
-            idx = np.where((pv<=significance)&(pvQ<=significance)&(cmap==ell))
+        pvQ = pvarray[ell,k-1,:]    
+        for j in range(ell,k-1): 
+            pv = pvarray[ell,j,:] 
+            idx = np.where((pv<=significance)&(pvQ<=significance)&(cmap==ell)) 
             fmap[idx] += 1 
             cmap[idx] = j+1 
             bmap[idx,j] = 1 
@@ -303,7 +303,7 @@ def getpvQ(lnQ,bands,k,n):
         rho = 1.0 - (k/n-1.0/(n*k))/(6.0*(k-1))
         omega2 = -3.0*(k-1)*(1.0-1/rho)**2/4.0  
 #  return p-value  
-    Z = -2*rho*lnQ
+    Z = -2*rho*lnQ 
     return 1.0-((1.-omega2)*stats.chi2.cdf(Z,[f])+omega2*stats.chi2.cdf(Z,[f+4]))   
                        
 def main():  
@@ -439,7 +439,7 @@ enl:
             if medianfilter:
                 pvs = v.map_sync(call_median_filter,pvs)
             lnRjs = np.array([result[1] for result in results]) 
-            lnQ = np.sum(lnRjs,axis=0)            
+            lnQ = np.sum(lnRjs,axis=0)          
             pvQ = getpvQ(lnQ,bands,k-i,n)       
             for j in range(i,k-1):
                 pvarray[i,j,:] = pvs[j-i].ravel() 
@@ -450,19 +450,19 @@ enl:
         for i in range(k-1):        
             print( i+1, flush=True)   
             args1 = [(fns[i:j+2],n,cols,rows,bands) for j in range(i,k-1)]                         
-            results = map(PV,args1)  # list of tuples (p-value, lnRj)
+            results = list(map(PV,args1))  # list of tuples (p-value, lnRj)
             pvs = [result[0] for result in results] 
             if medianfilter:
                 pvs = map(call_median_filter,pvs) 
             lnRjs = np.array([result[1] for result in results]) 
-            lnQ = np.sum(lnRjs,axis=0)              
+            lnQ = np.sum(lnRjs,axis=0)
             pvQ = getpvQ(lnQ,bands,k-i,n)                   
             for j in range(i,k-1):
                 pvarray[i,j,:] = pvs[j-i].ravel() 
             pvarray[i,k-1,:] = pvQ.ravel()  
     print( '\nelapsed time for p-value calculation: '+str(time.time()-start1) )    
     
-    cmap,smap,fmap,bmap = change_maps(pvarray,significance)    
+    cmap,smap,fmap,bmap = change_maps(pvarray,significance)   
 #  post process bmap for Loewner direction   
     avimg = getimg(fns[0])
     r = 1.0 

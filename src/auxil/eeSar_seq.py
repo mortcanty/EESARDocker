@@ -435,7 +435,7 @@ def on_export_ass_button_clicked(b):
             timestamp = time.gmtime(int(timestamp)/1000)
             timestamp = time.strftime('%x', timestamp)
             bgname = 'sentinel-2 '+ str(timestamp) 
-            background = background.divide(10000)
+            background = background.divide(5000)
     cmaps = ee.Image.cat(cmap,smap,fmap,bmap,background).rename(['cmap','smap','fmap']+timestamplist1[1:]+['background'])                
     assexport = ee.batch.Export.image.toAsset(cmaps,
                                 description='assetExportTask', 
@@ -500,7 +500,7 @@ def on_export_drv_button_clicked(b):
             timestamp = time.gmtime(int(timestamp)/5000)
             timestamp = time.strftime('%x', timestamp)
             bgname = 'sentinel-2 '+ str(timestamp) 
-            background = background.divide(10000)
+            background = background.divide(5000)
     cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])  
     fileNamePrefix=w_exportdrivename.value.replace('/','-')            
     gdexport = ee.batch.Export.image.toDrive(cmaps.byte(),

@@ -3,6 +3,7 @@ setup.py
 auxil/__init__.py
 auxil/auxil1.py
 auxil/congrid.py
+auxil/dnn.py
 auxil/eeSar_seq.py
 auxil/eeWishart.py
 auxil/lookup.py
