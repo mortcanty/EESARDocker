@@ -88,11 +88,10 @@ venv3/
 ENV/
 
 # private
-credentials.json
+src/credentials.json
 
 # work directories
-imagery/
-myimagery/
+src/imagery/
 
 # Spyder project settings
 .spyderproject
