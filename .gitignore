@@ -87,6 +87,9 @@ venv/
 venv3/
 ENV/
 
+# private
+credentials.json
+
 # work directories
 imagery/
 myimagery/
