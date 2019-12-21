@@ -91,7 +91,7 @@ ENV/
 credentials.json
 
 # work directories
-imagery/
+imagery
 
 # Spyder project settings
 .spyderproject
