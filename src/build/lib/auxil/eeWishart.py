@@ -6,7 +6,6 @@ The sequential omnibus algorithm for polarimetric SAR imagery
 @author: mort
 '''
 
-
 import ee
 
 def chi2cdf(chi2,df):
@@ -37,7 +36,7 @@ def log_det(imList,j):
     return ee.Image(det(im)).log()
     
 def pv(imList,median,j,enl):
-    ''' calculate -2log(R_ell,j) and return P-value'''
+    ''' calculate -2log(R_ell,j) and return it and the P-value'''
     imList = ee.List(imList)
     p2 = ee.Image(imList.get(0)).bandNames().length()
     p = ee.Number(ee.Algorithms.If(p2.eq(2).Or(p2.eq(3)),p2,p2.sqrt()))

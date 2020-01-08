@@ -14,6 +14,7 @@ from ipyleaflet import (Map,DrawControl,TileLayer,
                         LayersControl,
                         SplitMapControl)
 from auxil.eeWishart import omnibus
+from geopy.geocoders import photon
 
 ee.Initialize()
 
@@ -25,6 +26,8 @@ poly = ee.Geometry.Polygon([[6.30154, 50.948329], [6.293307, 50.877329],
                             [6.30154, 50.948329]])
 
 center = list(reversed(poly.centroid().coordinates().getInfo()))
+
+geolocator = photon.Photon(timeout=5)
 
 def get_incidence_angle(image):
     ''' grab the mean incidence angle '''
@@ -92,6 +95,12 @@ w_enl = widgets.BoundedFloatText(
     description='ENL:',
     disabled=False
 )
+w_location = widgets.Text(
+    value='Jülich, Germany',
+    placeholder=' ',
+    description='',
+    disabled=False
+)
 w_orbitpass = widgets.RadioButtons(
     options=['ASCENDING','DESCENDING'],
     value='ASCENDING',
@@ -123,6 +132,11 @@ w_relativeorbitnumber = widgets.IntText(
     disabled=False
 )
 w_exportassetsname = widgets.Text(
+    value='users/<username>/<path>',
+    placeholder=' ',
+    disabled=False
+)
+w_getpolyassetname = widgets.Text(
     value='users/<username>/<path>',
     placeholder=' ',
     disabled=False
@@ -201,10 +215,13 @@ w_text = widgets.Textarea(
     disabled = False
 )
 
-w_collect = widgets.HBox([w_collection,w_enl])
+w_goto = widgets.Button(description='GoTo')
+w_coll = widgets.HBox([w_collection,w_enl,w_goto,w_location])
 w_opac = widgets.VBox([w_opacity,w_maskchange,w_maskland],layout = widgets.Layout(width='50%'))
-w_run = widgets.Button(description="Collect")
+w_collect = widgets.Button(description="Collect")
 w_preview = widgets.Button(description="Preview",disabled=True)
+w_poly = widgets.Button(description="ShowPolyBounds")
+w_getpoly = widgets.Button(description="GetPolyFromAsset")
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
 w_export_series = widgets.Button(description='ExportSeries',disabled=True)
@@ -213,9 +230,9 @@ w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
 w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
-w_rse = widgets.HBox([w_run,w_preview])
+w_run = widgets.HBox([w_collect,w_preview,w_getpoly,w_getpolyassetname,w_poly])
 
-box = widgets.VBox([w_text,w_collect,w_dates,w_orbit,w_signif,w_rse,w_exp])
+box = widgets.VBox([w_text,w_coll,w_dates,w_orbit,w_signif,w_run,w_exp])
 
 def on_widget_change(b):
     w_preview.disabled = True
@@ -253,13 +270,26 @@ def getS2collection(coords):
                       .filterBounds(ee.Geometry.Point(coords.get(3))) \
                       .filterDate(ee.Date(w_startdate.value),ee.Date(w_enddate.value)) \
                       .sort('CLOUDY_PIXEL_PERCENTAGE',True)
- 
 
-def on_run_button_clicked(b):
-    global result,m,collection,poly,imList,count,timestamplist1,timestamps2, \
-           w_startdate,w_enddate,w_orbitpass,w_changemap,s2_image, \
-           w_relativeorbitnumber,w_significance,w_median,w_Q, \
-           mean_incidence,collectionmean,archive_crs,coords
+def on_poly_button_clicked(b):
+    global poly
+    w_text.value = str(poly.bounds().getInfo())
+    
+w_poly.on_click(on_poly_button_clicked)    
+
+def on_getpoly_button_clicked(b):
+    global poly
+    asset = w_getpolyassetname.value
+    poly = ee.Image(asset).select(0).geometry()
+    center = poly.centroid().coordinates().reverse().getInfo()
+    m.center = center
+    
+w_getpoly.on_click(on_getpoly_button_clicked)    
+     
+
+def on_collect_button_clicked(b):
+    global result,collection,imList,poly,count,timestamplist1,timestamps2, \
+           s2_image,rons,mean_incidence,collectionmean,archive_crs,coords
     try:       
         if w_collection.value == 'COPERNICUS/S1_GRD':    
             w_text.value = 'running on GEE archive ...' 
@@ -294,8 +324,11 @@ def on_run_button_clicked(b):
                 mean_incidence = get_incidence_angle(collection.first())
                 txt += 'Mean incidence angle: %f'%mean_incidence
             else:
+                mean_incidence = 'undefined'
                 txt += 'Mean incidence angle: (select one rel. orbit)'
-            pcollection = collection.map(get_vvvh)
+            pcollection = collection.map(get_vvvh)            
+            collectionfirst = ee.Image(pcollection.first())
+            w_exportscale.value = str(collectionfirst.projection().nominalScale().getInfo())          
             pList = pcollection.toList(100)   
             first = ee.Dictionary({'imlist':ee.List([]),'poly':poly,'enl':ee.Number(w_enl.value)}) 
             imList = ee.Dictionary(pList.iterate(clipList,first)).get('imlist')
@@ -363,10 +396,19 @@ def on_run_button_clicked(b):
     except Exception as e:
         w_text.value =  'Error: %s'%e
 
-w_run.on_click(on_run_button_clicked)
+w_collect.on_click(on_collect_button_clicked)
+
+def on_goto_button_clicked(b):
+    try:
+        location = geolocator.geocode(w_location.value)
+        m.center = (location.latitude,location.longitude)
+    except Exception as e:
+        w_text.value =  'Error: %s'%e
+
+w_goto.on_click(on_goto_button_clicked)
 
 def on_preview_button_clicked(b):
-    global result,m,cmap,smap,fmap,bmap,w_changemap
+    global cmap,smap,fmap,bmap
     
     landmask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)    
     
@@ -420,7 +462,6 @@ def on_preview_button_clicked(b):
 w_preview.on_click(on_preview_button_clicked)   
 
 def on_export_ass_button_clicked(b):
-    global w_exportassetsname
     background = collectionmean.add(15).divide(15)
     bgname = 'collectionmean'
     if w_collection.value == 'COPERNICUS/S1_GRD':  
@@ -457,7 +498,7 @@ def on_export_ass_button_clicked(b):
                             'Significance: '+str(w_significance.value),  
                             'Series length: '+str(len(times)),
                             'Timestamps: '+str(times)[1:-1],
-                            'Rel orbit numbers: '+str(w_relativeorbitnumber.value),
+                            'Rel orbit numbers: '+str(rons),
                             'Platform: '+w_platform.value,
                             'Background image: '+bgname,
                             'Mean incidence angles: '+str(mean_incidence),
@@ -485,22 +526,6 @@ def on_export_ass_button_clicked(b):
 w_export_ass.on_click(on_export_ass_button_clicked) 
 
 def on_export_drv_button_clicked(b):
-    global w_exportdrivename
-    background = collectionmean.add(15).divide(15)
-    bgname = 'collectionmean'
-    if w_collection.value == 'COPERNICUS/S1_GRD':  
-        collection1 = getS2collection(coords)
-        count1 = collection1.size().getInfo()
-        if count1>0:
-    #      use sentinel-2 as video background if available                       
-            background = ee.Image(collection1.first()) \
-                                   .clip(poly) \
-                                   .select('B8') 
-            timestamp = background.get('system:time_start').getInfo()
-            timestamp = time.gmtime(int(timestamp)/5000)
-            timestamp = time.strftime('%x', timestamp)
-            bgname = 'sentinel-2 '+ str(timestamp) 
-            background = background.divide(5000)
     cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])  
     fileNamePrefix=w_exportdrivename.value.replace('/','-')            
     gdexport = ee.batch.Export.image.toDrive(cmaps.byte(),
@@ -522,9 +547,8 @@ def on_export_drv_button_clicked(b):
                             'Significance: '+str(w_significance.value),  
                             'Series length: '+str(len(times)),
                             'Timestamps: '+str(times)[1:-1],
-                            'Rel orbit numbers: '+str(w_relativeorbitnumber.value),
+                            'Rel orbit number(s): '+str(rons),
                             'Platform: '+w_platform.value,
-                            'Background image: '+bgname,
                             'Mean incidence angles: '+str(mean_incidence),
                             'Used 3x3 median filter: '+str(w_median.value)]) \
                             .cat(['Polygon:']) \
@@ -561,7 +585,7 @@ def on_export_series_button_clicked(b):
         gdexport1 = ee.batch.Export.image.toDrive(image,
                                                   description='driveExportTask_series_'+pad+str(i), 
                                                   folder = 'EarthEngineImages',
-                                                  fileNamePrefix = timestamplist1[i],
+                                                  fileNamePrefix = timestamplist1[i]+'_'+w_exportscale.value[:2],
                                                   crs = archive_crs,
                                                   scale = w_exportscale.value,
                                                   maxPixels = 1e10)

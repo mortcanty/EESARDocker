@@ -115,7 +115,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
             blueband  = np.nan_to_num(inDataset1.GetRasterBand(b).ReadAsArray(x0,y0,cols,rows))
         else:
             classimg = inDataset1.GetRasterBand(1).ReadAsArray(x0,y0,cols,rows).ravel()         
-            num_classes = np.max(classimg)-np.min(classimg)
+            num_classes = np.max(classimg)-np.min(classimg)    
             redband = classimg   
             greenband = classimg
             blueband = classimg
