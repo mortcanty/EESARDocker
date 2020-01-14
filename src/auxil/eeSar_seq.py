@@ -27,7 +27,7 @@ poly = ee.Geometry.Polygon([[6.30154, 50.948329], [6.293307, 50.877329],
 
 center = list(reversed(poly.centroid().coordinates().getInfo()))
 
-geolocator = photon.Photon(timeout=5)
+geolocator = photon.Photon(timeout=10)
 
 def get_incidence_angle(image):
     ''' grab the mean incidence angle '''
@@ -283,6 +283,7 @@ def on_getpoly_button_clicked(b):
     poly = ee.Image(asset).select(0).geometry()
     center = poly.centroid().coordinates().reverse().getInfo()
     m.center = center
+    m.zoom = 11
     
 w_getpoly.on_click(on_getpoly_button_clicked)    
      
@@ -290,9 +291,9 @@ w_getpoly.on_click(on_getpoly_button_clicked)
 def on_collect_button_clicked(b):
     global result,collection,imList,poly,count,timestamplist1,timestamps2, \
            s2_image,rons,mean_incidence,collectionmean,archive_crs,coords
-    try:       
-        if w_collection.value == 'COPERNICUS/S1_GRD':    
-            w_text.value = 'running on GEE archive ...' 
+    try:  
+        if (w_collection.value == 'COPERNICUS/S1_GRD') or (w_collection.value == ''):   
+            w_text.value = 'running on GEE archive COPERNICUS/S1_GRD ...' 
             coords = ee.List(poly.bounds().coordinates().get(0))
             collection = getS1collection(coords) 
             if w_relativeorbitnumber.value > 0:
@@ -402,6 +403,7 @@ def on_goto_button_clicked(b):
     try:
         location = geolocator.geocode(w_location.value)
         m.center = (location.latitude,location.longitude)
+        m.zoom = 11
     except Exception as e:
         w_text.value =  'Error: %s'%e
 

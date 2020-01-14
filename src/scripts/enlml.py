@@ -194,6 +194,7 @@ An ENL image will be written to the same directory with '_enl' appended.
     if graphics:
         plt.plot(xa[0:-1],ya)
         plt.title('Histogram ENL for %s'%infile)
+        plt.grid()
         plt.show()       
     print( 'ENL image written to: %s'%outfile )             
     print( 'elapsed time: '+str(time.time()-start) )                    

@@ -1,7 +1,9 @@
 '''
-Created on 09.01.2017
+Created on 09.01.2017, updated 2018, 2019, 2020 
 
 The sequential omnibus algorithm for polarimetric SAR imagery
+
+usage: from auxil.eeWishart import omnibus
 
 @author: mort
 '''
@@ -39,12 +41,14 @@ def pv(imList,median,j,enl):
     ''' calculate -2log(R_ell,j) and return it and the P-value'''
     imList = ee.List(imList)
     p2 = ee.Image(imList.get(0)).bandNames().length()
+#  diagonal cases  p = p2 else p = sqrt(p2) 
     p = ee.Number(ee.Algorithms.If(p2.eq(2).Or(p2.eq(3)),p2,p2.sqrt()))
     j = ee.Number(j)
+#  degrees of freedom    
     f = p2
     one = ee.Number(1.0)
    
-    rhoj = ee.Number(ee.Algorithms.If( p2.eq(2),
+    rhoj = ee.Number(ee.Algorithms.If( p2.lte(3),
 #      1 - (1.+1./(j*(j-1)))/(6.*p1*n) where p1=1                                      
         one.subtract(one.add(one.divide(j.multiply(j.subtract(one)))).divide(6).divide(enl)),
 #      1 - (2*p2-1.)*(1.+1./(j*(j-1.))/6*p*n               
@@ -53,7 +57,7 @@ def pv(imList,median,j,enl):
                       .divide(p.multiply(6).multiply(enl))
                     ) ))
    
-    omega2j = ee.Number(ee.Algorithms.If( p2.eq(2),
+    omega2j = ee.Number(ee.Algorithms.If( p2.lte(3),
 #      -(f/4.)*(1.-1./rhoj)**2                                    
         one.subtract(one.divide(rhoj)).pow(2.0).multiply(f.divide(-4.0)),        
 #      (f/4)*(1-1./rhoj)**2 + (1./(24.*n**2))*p2(p2-1.)*(1.+(2.*j-1.)/(j**2*(j-1.)**2))/rh0j**2       
@@ -77,7 +81,7 @@ def pv(imList,median,j,enl):
                  .add(chi2cdf(Zj.multiply(rhoj),f.add(4)).multiply(omega2j))
     PV = ee.Image.constant(1.0).subtract(P)
 #  3x3 median filter    
-    return (ee.Algorithms.If(median, PV.focal_median(), PV),Zj)    
+    return (ee.Algorithms.If(median, PV.focal_median(), PV), Zj)    
 
 def js_iter(current,prev):
     j = ee.Number(current)
@@ -115,7 +119,7 @@ def ells_iter(current,prev):
     p = p2.sqrt()
     one = ee.Number(1)
 #  rho, w2 values 
-    rho = ee.Number(ee.Algorithms.If( p2.eq(2),
+    rho = ee.Number(ee.Algorithms.If( p2.lte(3),
                                       one.subtract(
                                           k.divide(enl).subtract(one.divide(enl.multiply(k))) \
                                           .divide(k.subtract(one).multiply(6))),
@@ -123,8 +127,8 @@ def ells_iter(current,prev):
                                           p2.multiply(2).subtract(one) \
                                          .multiply(k.subtract(one.divide(k))) \
                                          .divide(k.subtract(one).multiply(p).multiply(6).multiply(enl)) )))
-    w2 = ee.Number(ee.Algorithms.If( p2.eq(2),
-                                     k.subtract(one).multiply(one.subtract(one.divide(rho)).pow(2)).divide(2),
+    w2 = ee.Number(ee.Algorithms.If( p2.lte(3),
+                                     k.subtract(one).multiply(one.subtract(one.divide(rho)).pow(2)).multiply(p2).divide(-4),
                                      p2.multiply(p2.subtract(one)) \
                                      .multiply(k.subtract(one.divide(k.pow(2)))) \
                                      .divide(rho.pow(2).multiply(24).multiply(enl.pow(2))) \

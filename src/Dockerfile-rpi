@@ -33,6 +33,9 @@ RUN     pip3 install --upgrade setuptools && \
         apt-get install -y libssl-dev
 RUN     pip3 install earthengine-api
 
+RUN     pip3 install sentinelsat
+RUN     pip3 install geopy
+
 # install auxil
 COPY    dist/auxil-1.0.tar.gz /home/auxil-1.0.tar.gz
 WORKDIR /home
