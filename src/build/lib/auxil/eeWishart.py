@@ -128,7 +128,7 @@ def ells_iter(current,prev):
                                          .multiply(k.subtract(one.divide(k))) \
                                          .divide(k.subtract(one).multiply(p).multiply(6).multiply(enl)) )))
     w2 = ee.Number(ee.Algorithms.If( p2.lte(3),
-                                     one.subtract(k).multiply(one.subtract(one.divide(rho)).pow(2)).multiply(p2).divide(4),
+                                     k.subtract(one).multiply(one.subtract(one.divide(rho)).pow(2)).multiply(p2).divide(-4),
                                      p2.multiply(p2.subtract(one)) \
                                      .multiply(k.subtract(one.divide(k.pow(2)))) \
                                      .divide(rho.pow(2).multiply(24).multiply(enl.pow(2))) \

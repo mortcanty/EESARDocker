@@ -411,55 +411,56 @@ w_goto.on_click(on_goto_button_clicked)
 
 def on_preview_button_clicked(b):
     global cmap,smap,fmap,bmap
-    
     landmask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)    
-    
-    jet = 'black,blue,cyan,yellow,red'
-    rgy = 'black,red,green,yellow'
-    smap = ee.Image(result.get('smap')).byte()
-    cmap = ee.Image(result.get('cmap')).byte()
-    fmap = ee.Image(result.get('fmap')).byte() 
-    bmap = ee.Image(result.get('bmap')).byte()
-    
-    cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])
-    downloadpath = cmaps.getDownloadUrl({'scale':w_exportscale.value}) 
-    txt = 'Download change maps from this URL (may be unreliable):\n'
-    txt += downloadpath+'\n'
-    palette = jet
-    if w_changemap.value=='First':
-        mp = smap
-        mx = count
-        txt += 'Interval of first change:\n blue = early, red = late'
-    elif w_changemap.value=='Last':
-        mp=cmap
-        mx = count
-        txt += 'Interval of last change:\n blue = early, red = late'
-    elif w_changemap.value=='Frequency':
-        mp = fmap
-        mx = count/2
-        txt += 'Interval of change frequency :\n blue = few, red = many'
-    else:
-        sel = int(w_bmap.value)
-        sel = min(sel,count-1)
-        sel = max(sel,1)
-        txt = 'Bitemporal: %s-->%s\n'%(timestamplist1[sel-1],timestamplist1[sel])
-        txt += 'red = positive definite, green = negative definite, yellow = indefinite'     
-        mp = bmap.select(sel-1).clip(poly)
-        palette = rgy
-        mx = 3
-    w_text.value = txt
-    if len(m.layers)>1:
-        m.remove_layer(m.layers[1])
-    if not w_Q.value:
-        mp = mp.reproject(crs=archive_crs,scale=float(w_exportscale.value))
-    if w_maskland.value==True:
-        mp = mp.updateMask(landmask)
-    if w_maskchange.value==True:    
-        mp = mp.updateMask(mp.gt(0))
-    m.add_layer(TileLayer(url=GetTileLayerUrl(mp.visualize(min=0, max=mx, palette=palette,opacity = w_opacity.value))))
-    w_export_ass.disabled = False
-    w_export_drv.disabled = False
-    w_export_series.disabled = False
+    try:
+        jet = 'black,blue,cyan,yellow,red'
+        rgy = 'black,red,green,yellow'
+        smap = ee.Image(result.get('smap')).byte()
+        cmap = ee.Image(result.get('cmap')).byte()
+        fmap = ee.Image(result.get('fmap')).byte() 
+        bmap = ee.Image(result.get('bmap')).byte()
+        
+        cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])
+        downloadpath = cmaps.getDownloadUrl({'scale':w_exportscale.value}) 
+        txt = 'Download change maps from this URL (may be unreliable):\n'
+        txt += downloadpath+'\n'
+        palette = jet
+        if w_changemap.value=='First':
+            mp = smap
+            mx = count
+            txt += 'Interval of first change:\n blue = early, red = late'
+        elif w_changemap.value=='Last':
+            mp=cmap
+            mx = count
+            txt += 'Interval of last change:\n blue = early, red = late'
+        elif w_changemap.value=='Frequency':
+            mp = fmap
+            mx = count/2
+            txt += 'Interval of change frequency :\n blue = few, red = many'
+        else:
+            sel = int(w_bmap.value)
+            sel = min(sel,count-1)
+            sel = max(sel,1)
+            txt = 'Bitemporal: %s-->%s\n'%(timestamplist1[sel-1],timestamplist1[sel])
+            txt += 'red = positive definite, green = negative definite, yellow = indefinite'     
+            mp = bmap.select(sel-1).clip(poly)
+            palette = rgy
+            mx = 3
+        w_text.value = txt
+        if len(m.layers)>1:
+            m.remove_layer(m.layers[1])
+        if not w_Q.value:
+            mp = mp.reproject(crs=archive_crs,scale=float(w_exportscale.value))
+        if w_maskland.value==True:
+            mp = mp.updateMask(landmask)
+        if w_maskchange.value==True:    
+            mp = mp.updateMask(mp.gt(0))
+        m.add_layer(TileLayer(url=GetTileLayerUrl(mp.visualize(min=0, max=mx, palette=palette,opacity = w_opacity.value))))
+        w_export_ass.disabled = False
+        w_export_drv.disabled = False
+        w_export_series.disabled = False
+    except Exception as e:
+        w_text.value =  'Error: %s'%e
     
 w_preview.on_click(on_preview_button_clicked)   
 
