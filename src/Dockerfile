@@ -26,8 +26,8 @@ EXPOSE 8888
 COPY    requirements.txt /home 
 RUN     pip3 install -r /home/requirements.txt
 RUN     pip3 install --global-option=build_ext --global-option="-I/usr/include/gdal" GDAL==2.1.3
-RUN     pip3 install sentinelsat
-RUN     pip3 install geopy
+#RUN     pip3 install sentinelsat
+#RUN     pip3 install geopy
 
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
 

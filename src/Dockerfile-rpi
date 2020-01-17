@@ -31,7 +31,7 @@ RUN     pip3 install --upgrade setuptools && \
         pip3 install --upgrade oauth2client && \
         pip3 install pyCrypto && \
         apt-get install -y libssl-dev
-RUN     pip3 install earthengine-api
+RUN     pip3 install earthengine-api==0.1.210
 
 RUN     pip3 install sentinelsat
 RUN     pip3 install geopy
