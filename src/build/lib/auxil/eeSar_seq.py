@@ -8,7 +8,6 @@ ipywidget interface to the GEE for sequential SAR change detection
 '''
 import ee, time, warnings, math
 import ipywidgets as widgets
-from bqplot import Lines, Figure, LinearScale, DateScale, Axis
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,
                         basemaps,basemap_to_tiles,
