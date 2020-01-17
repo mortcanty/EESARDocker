@@ -8,6 +8,7 @@ ipywidget interface to the GEE for sequential SAR change detection
 '''
 import ee, time, warnings, math
 import ipywidgets as widgets
+from bqplot import Lines, Figure, LinearScale, DateScale, Axis
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,
                         basemaps,basemap_to_tiles,
@@ -53,12 +54,15 @@ def get_image(current,image):
     return ee.Image.cat(ee.Image(image),current)    
     
 def clipList(current,prev):
-    ''' clip a list of images '''
+    ''' clip a list of images and multiply by ENL'''
     imlist = ee.List(ee.Dictionary(prev).get('imlist'))
     poly = ee.Dictionary(prev).get('poly') 
-    enl = ee.Number(ee.Dictionary(prev).get('enl'))   
-    imlist = imlist.add(ee.Image(current).multiply(enl).clip(poly))
-    return ee.Dictionary({'imlist':imlist,'poly':poly,'enl':enl})
+    enl = ee.Number(ee.Dictionary(prev).get('enl'))
+    ctr = ee.Number(ee.Dictionary(prev).get('ctr'))   
+    stride = ee.Number(ee.Dictionary(prev).get('stride'))
+    imlist =  ee.Algorithms.If(ctr.mod(stride).eq(0),
+        imlist.add(ee.Image(current).multiply(enl).clip(poly)),imlist)
+    return ee.Dictionary({'imlist':imlist,'poly':poly,'enl':enl,'ctr':ctr.add(1),'stride':stride})
 
 def makefeature(data):
     ''' for exporting as CSV to Drive '''
@@ -113,9 +117,10 @@ w_changemap = widgets.RadioButtons(
     description='Map:',
     disabled=False
 )
-w_bmap = widgets.IntText(
+w_bmap = widgets.BoundedIntText(
     layout = widgets.Layout(width='50px'),
-    value='1',
+    min=1,
+    value=1,
     description='',
     disabled=False
 )
@@ -127,6 +132,7 @@ w_platform = widgets.RadioButtons(
     disabled=False
 )
 w_relativeorbitnumber = widgets.IntText(
+    layout = widgets.Layout(width='200px'),
     value='0',
     description='Rel orbit:',
     disabled=False
@@ -163,6 +169,13 @@ w_enddate = widgets.Text(
     value='2018-10-01',
     placeholder=' ',
     description='End date:',
+    disabled=False
+)
+w_stride = widgets.BoundedIntText(
+    layout = widgets.Layout(width='200px'),
+    value=1,
+    min=1,
+    description='Stride:',
     disabled=False
 )
 w_median = widgets.Checkbox(
@@ -225,7 +238,7 @@ w_getpoly = widgets.Button(description="GetPolyFromAsset")
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
 w_export_series = widgets.Button(description='ExportSeries',disabled=True)
-w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate])
+w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate,w_stride])
 w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
 w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series])
@@ -244,6 +257,8 @@ w_orbitpass.observe(on_widget_change,names='value')
 w_platform.observe(on_widget_change,names='value')
 w_relativeorbitnumber.observe(on_widget_change,names='value')
 w_startdate.observe(on_widget_change,names='value')
+w_enddate.observe(on_widget_change,names='value')
+w_stride.observe(on_widget_change,names='value')
 w_collection.observe(on_widget_change,names='value')
 w_enl.observe(on_widget_change,names='value')
 w_enddate.observe(on_widget_change,names='value')
@@ -311,9 +326,13 @@ def on_collect_button_clicked(b):
                 timestamplist.append(time.strftime('%x', tmp))  
     #      make timestamps in YYYYMMDD format            
             timestamplist = [x.replace('/','') for x in timestamplist]  
-            timestamplist = ['T20'+x[4:]+x[0:4] for x in timestamplist]
+            timestamplist = ['T20'+x[4:]+x[0:4] for x in timestamplist]         
+            timestamplist = timestamplist[::int(w_stride.value)]
     #      in case of duplicates add running integer
-            timestamplist1 = [timestamplist[i] + '_' + str(i+1) for i in range(len(timestamplist))]    
+            timestamplist1 = [timestamplist[i] + '_' + str(i+1) for i in range(len(timestamplist))]     
+            count = len(timestamplist)
+            if count<2:
+                raise ValueError('Less than 2 images found, decrease stride')            
             relativeorbitnumbers = map(int,ee.List(collection.aggregate_array('relativeOrbitNumber_start')).getInfo())
             rons = list(set(relativeorbitnumbers))
             txt = 'running on GEE archive ...'
@@ -330,9 +349,9 @@ def on_collect_button_clicked(b):
             pcollection = collection.map(get_vvvh)            
             collectionfirst = ee.Image(pcollection.first())
             w_exportscale.value = str(collectionfirst.projection().nominalScale().getInfo())          
-            pList = pcollection.toList(100)   
-            first = ee.Dictionary({'imlist':ee.List([]),'poly':poly,'enl':ee.Number(w_enl.value)}) 
-            imList = ee.Dictionary(pList.iterate(clipList,first)).get('imlist')
+            pList = pcollection.toList(500)   
+            first = ee.Dictionary({'imlist':ee.List([]),'poly':poly,'enl':ee.Number(w_enl.value),'ctr':ee.Number(0),'stride':ee.Number(int(w_stride.value))}) 
+            imList = ee.Dictionary(pList.iterate(clipList,first)).get('imlist')       
             collectionmean = collection.mean().select(0).clip(poly).rename('b0')     
             percentiles = collectionmean.reduceRegion(ee.Reducer.percentile([2,98]),scale=float(w_exportscale.value),maxPixels=10e9)
             mn = ee.Number(percentiles.get('b0_p2'))
@@ -418,13 +437,10 @@ def on_preview_button_clicked(b):
         smap = ee.Image(result.get('smap')).byte()
         cmap = ee.Image(result.get('cmap')).byte()
         fmap = ee.Image(result.get('fmap')).byte() 
-        bmap = ee.Image(result.get('bmap')).byte()
-        
+        bmap = ee.Image(result.get('bmap')).byte()       
         cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])
-        downloadpath = cmaps.getDownloadUrl({'scale':w_exportscale.value}) 
-        txt = 'Download change maps from this URL (may be unreliable):\n'
-        txt += downloadpath+'\n'
         palette = jet
+        txt = 'Series length: %i images\n'%count
         if w_changemap.value=='First':
             mp = smap
             mx = count
@@ -436,12 +452,12 @@ def on_preview_button_clicked(b):
         elif w_changemap.value=='Frequency':
             mp = fmap
             mx = count/2
-            txt += 'Interval of change frequency :\n blue = few, red = many'
+            txt += 'Change frequency :\n blue = few, red = many'
         else:
             sel = int(w_bmap.value)
             sel = min(sel,count-1)
             sel = max(sel,1)
-            txt = 'Bitemporal: %s-->%s\n'%(timestamplist1[sel-1],timestamplist1[sel])
+            txt += 'Bitemporal: %s-->%s\n'%(timestamplist1[sel-1],timestamplist1[sel])
             txt += 'red = positive definite, green = negative definite, yellow = indefinite'     
             mp = bmap.select(sel-1).clip(poly)
             palette = rgy

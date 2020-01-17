@@ -1,4 +1,4 @@
-EESARDocker
+EESARDocker 
 ===========
 Source files for the Docker image mort/eesardocker
 Docker image with Jupyter widget interface for 
@@ -17,15 +17,12 @@ If you wish to link a local host working directory to the container, include the
 	-v <path/to/mylocalfolder>:/home/mylocalfolder	
 
 Point your browser to http://localhost:8888 to see the Jupyter notebook home page. 
-Open a terminal window in the container from the notebook menu and enter
-
-	earthengine authenticate
-	
-and follow the authentication instructions. This only has to be done once.	
  
 Open the Notebook 
 
     interface.ipynb 
+    
+and run the first cell for authentication. This only has to be done once.    
 
 Stop the container with
 
