@@ -5,7 +5,7 @@ FROM     debian:stretch
 
 MAINTAINER Mort Canty "mort.canty@gmail.com"
 
-ENV     REFRESHED_AT 2019-04-16
+ENV     REFRESHED_AT 2020-01-16
  
 RUN apt-get update && apt-get install -y \
     python3 \
@@ -26,8 +26,6 @@ EXPOSE 8888
 COPY    requirements.txt /home 
 RUN     pip3 install -r /home/requirements.txt
 RUN     pip3 install --global-option=build_ext --global-option="-I/usr/include/gdal" GDAL==2.1.3
-#RUN     pip3 install sentinelsat
-#RUN     pip3 install geopy
 
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
 

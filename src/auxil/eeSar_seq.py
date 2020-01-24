@@ -12,9 +12,13 @@ from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,
                         basemaps,basemap_to_tiles,
                         LayersControl,
+                        MeasureControl,
+                        FullScreenControl,
+                        WidgetControl,
                         SplitMapControl)
 from auxil.eeWishart import omnibus
 from geopy.geocoders import photon
+from bqplot import Lines, Figure, LinearScale, OrdinalScale,Axis
 
 ee.Initialize()
 
@@ -26,6 +30,11 @@ poly = ee.Geometry.Polygon([[6.30154, 50.948329], [6.293307, 50.877329],
                             [6.30154, 50.948329]])
 
 center = list(reversed(poly.centroid().coordinates().getInfo()))
+
+def update_figure(fig,line,profile):    
+    fig.title = 'Change Profile'
+    line.x = range(1,count)
+    line.y = profile
 
 geolocator = photon.Photon(timeout=10)
 
@@ -74,9 +83,10 @@ def handle_draw(self, action, geo_json):
         poly = ee.Geometry.Polygon(coords)
         w_preview.disabled = True
         w_export_ass.disabled = True
-        
+
 dc = DrawControl(polyline={},circlemarker={})
 dc.rectangle = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fillOpacity": 0.1}}
+dc.polygon = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fillOpacity": 0.1}}
 dc.on_draw(handle_draw)
 
 def GetTileLayerUrl(ee_image_object):
@@ -124,7 +134,7 @@ w_bmap = widgets.BoundedIntText(
     disabled=False
 )
 w_platform = widgets.RadioButtons(
-    layout = widgets.Layout(width='20%'),
+    layout = widgets.Layout(width='25%'),
     options=['Both','A','B'],
      value='Both',
     description='Platform:',
@@ -137,6 +147,7 @@ w_relativeorbitnumber = widgets.IntText(
     disabled=False
 )
 w_exportassetsname = widgets.Text(
+    layout = widgets.Layout(width='200px'),
     value='users/<username>/<path>',
     placeholder=' ',
     disabled=False
@@ -147,15 +158,16 @@ w_getpolyassetname = widgets.Text(
     disabled=False
 )
 w_exportdrivename = widgets.Text(
+    layout = widgets.Layout(width='200px'),
     value='EarthEngineImages/<path>',
     placeholder=' ',
     disabled=False
 )
-w_exportscale = widgets.Text(
+w_exportscale = widgets.FloatText(
     layout = widgets.Layout(width='150px'),
-    value='10',
+    value=10,
     placeholder=' ',
-    description='Scale ',
+    description='Export Scale ',
     disabled=False
 )
 w_startdate = widgets.Text(
@@ -183,11 +195,13 @@ w_median = widgets.Checkbox(
     disabled=False
 )
 w_S2 = widgets.Checkbox(
+    layout = widgets.Layout(width='200px'),
     value=True,
     description='Show best S2',
     disabled=False
 )
 w_Q = widgets.Checkbox(
+    layout = widgets.Layout(width='200px'),
     value=True,
     description='Quick Preview',
     disabled=False
@@ -230,6 +244,7 @@ w_text = widgets.Textarea(
 w_goto = widgets.Button(description='GoTo')
 w_coll = widgets.HBox([w_collection,w_enl,w_goto,w_location])
 w_opac = widgets.VBox([w_opacity,w_maskchange,w_maskland],layout = widgets.Layout(width='50%'))
+w_profile = widgets.Button(description='Profile',disabled=True)
 w_collect = widgets.Button(description="Collect")
 w_preview = widgets.Button(description="Preview",disabled=True)
 w_poly = widgets.Button(description="ShowPolyBounds")
@@ -240,9 +255,9 @@ w_export_series = widgets.Button(description='ExportSeries',disabled=True)
 w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate,w_stride])
 w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
-w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series])
-w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
-w_run = widgets.HBox([w_collect,w_preview,w_getpoly,w_getpolyassetname,w_poly])
+w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_exportscale,w_export_series])
+w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median],layout = widgets.Layout(width='99%'))
+w_run = widgets.HBox([w_collect,w_preview,w_profile,w_getpoly,w_getpolyassetname,w_poly])
 
 box = widgets.VBox([w_text,w_coll,w_dates,w_orbit,w_signif,w_run,w_exp])
 
@@ -251,6 +266,7 @@ def on_widget_change(b):
     w_export_ass.disabled = True
     w_export_drv.disabled = True
     w_export_series.disabled = True
+    w_preview.disabled = True
 
 w_orbitpass.observe(on_widget_change,names='value')
 w_platform.observe(on_widget_change,names='value')
@@ -303,8 +319,8 @@ w_getpoly.on_click(on_getpoly_button_clicked)
      
 
 def on_collect_button_clicked(b):
-    global result,collection,imList,poly,count,timestamplist1,timestamps2, \
-           s2_image,rons,mean_incidence,collectionmean,archive_crs,coords
+    global result,collection,count,imList,poly,timestamplist1,timestamps2, \
+           s2_image,rons,mean_incidence,collectionmean,archive_crs,coords,wc
     try:  
         if (w_collection.value == 'COPERNICUS/S1_GRD') or (w_collection.value == ''):   
             w_text.value = 'running on GEE archive COPERNICUS/S1_GRD ...' 
@@ -347,12 +363,12 @@ def on_collect_button_clicked(b):
                 txt += 'Mean incidence angle: (select one rel. orbit)'
             pcollection = collection.map(get_vvvh)            
             collectionfirst = ee.Image(pcollection.first())
-            w_exportscale.value = str(collectionfirst.projection().nominalScale().getInfo())          
+            w_exportscale.value = collectionfirst.projection().nominalScale().getInfo()          
             pList = pcollection.toList(500)   
             first = ee.Dictionary({'imlist':ee.List([]),'poly':poly,'enl':ee.Number(w_enl.value),'ctr':ee.Number(0),'stride':ee.Number(int(w_stride.value))}) 
             imList = ee.Dictionary(pList.iterate(clipList,first)).get('imlist')       
             collectionmean = collection.mean().select(0).clip(poly).rename('b0')     
-            percentiles = collectionmean.reduceRegion(ee.Reducer.percentile([2,98]),scale=float(w_exportscale.value),maxPixels=10e9)
+            percentiles = collectionmean.reduceRegion(ee.Reducer.percentile([2,98]),scale=w_exportscale.value,maxPixels=10e9)
             mn = ee.Number(percentiles.get('b0_p2'))
             mx = ee.Number(percentiles.get('b0_p98'))        
             vorschau = collectionmean.visualize(min=mn, max=mx, opacity=w_opacity.value) 
@@ -367,7 +383,7 @@ def on_collect_button_clicked(b):
             center = poly.centroid().coordinates().getInfo()
             center.reverse()
             m.center = center                
-            w_exportscale.value = str(collectionfirst.projection().nominalScale().getInfo()) 
+            w_exportscale.value = collectionfirst.projection().nominalScale().getInfo()
             if collectionfirst.get('system:time_start').getInfo() is not None:
                 acquisition_times = ee.List(collection.aggregate_array('system:time_start')).getInfo()  
                 timestamplist1 = []
@@ -392,16 +408,16 @@ def on_collect_button_clicked(b):
         result = ee.Dictionary(omnibus(imList,w_significance.value,w_enl.value,w_median.value))
         w_preview.disabled = False
         s2_image = None
-#      display collection or S2                
-        if len(m.layers)>1:
-            m.remove_layer(m.layers[1])
+#      display collection or S2 
+        if len(m.layers)>3:
+            m.remove_layer(m.layers[3])
         if w_S2.value:
 #          display sentinel-2 if available              
             collection2 = getS2collection(coords) 
             count1 = collection2.size().getInfo()
             if count1>0:    
                 s2_image =  ee.Image(collection2.first()).select(['B8','B4','B3']).clip(poly)        
-                percentiles = s2_image.reduceRegion(ee.Reducer.percentile([2,98]),scale=float(w_exportscale.value),maxPixels=10e9)         
+                percentiles = s2_image.reduceRegion(ee.Reducer.percentile([2,98]),scale=w_exportscale.value,maxPixels=10e9)         
                 mn = percentiles.values(['B8_p2','B4_p2','B3_p2'])
                 mx = percentiles.values(['B8_p98','B4_p98','B3_p98'])
                 vorschau = s2_image.visualize(min=mn,max=mx,opacity=w_opacity.value)           
@@ -410,8 +426,13 @@ def on_collect_button_clicked(b):
                 timestamp = time.strftime('%x', timestamp).replace('/','')
                 timestamps2 = '20'+timestamp[4:]+timestamp[0:4]
                 txt += '\nSentinel-2 from %s'%timestamps2
-        w_text.value = txt           
+        w_text.value = txt  
         m.add_layer(TileLayer(url=GetTileLayerUrl(vorschau)))
+        w_profile.disabled = True
+        try:
+            m.remove_control(wc)
+        except Exception:
+            pass                        
     except Exception as e:
         w_text.value =  'Error: %s'%e
 
@@ -428,7 +449,7 @@ def on_goto_button_clicked(b):
 w_goto.on_click(on_goto_button_clicked)
 
 def on_preview_button_clicked(b):
-    global cmap,smap,fmap,bmap
+    global cmap,smap,fmap,bmap,fig,line,count
     landmask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)    
     try:
         jet = 'black,blue,cyan,yellow,red'
@@ -437,9 +458,8 @@ def on_preview_button_clicked(b):
         cmap = ee.Image(result.get('cmap')).byte()
         fmap = ee.Image(result.get('fmap')).byte() 
         bmap = ee.Image(result.get('bmap')).byte()       
-        cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])
         palette = jet
-        txt = 'Series length: %i images\n'%count
+        txt = 'Series length: %i images, previewing ...\n'%count
         if w_changemap.value=='First':
             mp = smap
             mx = count
@@ -460,20 +480,21 @@ def on_preview_button_clicked(b):
             txt += 'red = positive definite, green = negative definite, yellow = indefinite'     
             mp = bmap.select(sel-1).clip(poly)
             palette = rgy
-            mx = 3
-        w_text.value = txt
-        if len(m.layers)>1:
-            m.remove_layer(m.layers[1])
+            mx = 3  
+        w_text.value = txt       
+        if len(m.layers)>3:
+            m.remove_layer(m.layers[3])
         if not w_Q.value:
             mp = mp.reproject(crs=archive_crs,scale=float(w_exportscale.value))
         if w_maskland.value==True:
             mp = mp.updateMask(landmask)
         if w_maskchange.value==True:    
-            mp = mp.updateMask(mp.gt(0))
+            mp = mp.updateMask(mp.gt(0))    
         m.add_layer(TileLayer(url=GetTileLayerUrl(mp.visualize(min=0, max=mx, palette=palette,opacity = w_opacity.value))))
         w_export_ass.disabled = False
         w_export_drv.disabled = False
         w_export_series.disabled = False
+        w_profile.disabled = False
     except Exception as e:
         w_text.value =  'Error: %s'%e
     
@@ -619,18 +640,75 @@ def on_export_series_button_clicked(b):
                                                   maxPixels = 1e10)
         gdexport2.start()          
             
-w_export_series.on_click(on_export_series_button_clicked)                           
+w_export_series.on_click(on_export_series_button_clicked)     
+
+def on_profile_button_clicked(b):
+    global wc
+    try:
+        m.remove_control(wc)
+    except Exception:     
+        try:
+            w_text.value = 'Profiling, please wait ...'
+            z = bmap.multiply(0).rename(timestamplist1[1:])
+            bmap1 = z.where(bmap.eq(1),1) 
+            bmap2 = z.where(bmap.eq(2),1)
+            bmap3 = z.where(bmap.eq(3),1)
+            bmap0 = z.where(bmap.gt(0),1)
+            profile1 = ee.Dictionary(bmap1.reduceRegion(ee.Reducer.mean(),geometry=poly,scale=w_exportscale.value,tileScale=4,maxPixels=1e9)) \
+                .toArray().getInfo() 
+            profile2 = ee.Dictionary(bmap2.reduceRegion(ee.Reducer.mean(),geometry=poly,scale=w_exportscale.value,tileScale=4,maxPixels=1e9)) \
+                 .toArray().getInfo() 
+            profile3 = ee.Dictionary(bmap3.reduceRegion(ee.Reducer.mean(),geometry=poly,scale=w_exportscale.value,tileScale=4,maxPixels=1e9)) \
+                 .toArray().getInfo()
+            profile0 = ee.Dictionary(bmap0.reduceRegion(ee.Reducer.mean(),geometry=poly,scale=w_exportscale.value,tileScale=4,maxPixels=1e9)) \
+                 .toArray().getInfo()     
+            x_data = range(1,count) 
+            x_sc = OrdinalScale()
+            y_sc = LinearScale()    
+            ax_x = Axis(label='Interval', scale=x_sc)
+            ax_y = Axis(scale=y_sc, orientation='vertical', tick_format='0.4f')    
+            line1 = Lines(x=x_data,
+                          y=profile1,
+                          scales={'x': x_sc, 'y': y_sc},
+                          colors=['red'])   
+            line2 = Lines(x=x_data,
+                          y=profile2,
+                          scales={'x': x_sc, 'y': y_sc},
+                          colors=['green']) 
+            line3 = Lines(x=x_data,
+                          y=profile3,
+                          scales={'x': x_sc, 'y': y_sc},
+                          colors=['yellow'])
+            line0 = Lines(x=x_data,
+                          y=profile0,
+                          scales={'x': x_sc, 'y': y_sc},
+                          colors=['black'])
+            fig = Figure(axes=[ax_x, ax_y], marks=[line1,line2,line3,line0],title='Change Fractions',
+                                          layout={'max_height': '300px', 'max_width':'600px','min_width': '600px'})
+            wc = WidgetControl(widget=fig,position='bottomright')
+            m.add_control(wc)
+            w_text.value = 'Profile done'
+        except Exception:
+            pass   
+    
+w_profile.on_click(on_profile_button_clicked)    
+                          
 
 def run():
-    global m,dc,center
+    global m,dc,center,fig,line
     center = list(reversed(poly.centroid().coordinates().getInfo()))
-    m = Map(center=center, zoom=11, layout={'height':'400px'})
-    osm = basemap_to_tiles(basemaps.OpenStreetMap.HOT)
-    mb = TileLayer(url="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWNhbnR5IiwiYSI6ImNpcjRsMmJxazAwM3hoeW05aDA1cmNkNzMifQ.d2UbIugbQFk2lnU8uHwCsQ")
-    sm_control = SplitMapControl(left_layer=osm,right_layer=mb)
-    m.add_control(dc)
-    m.add_control(sm_control)
-    m.add_control(LayersControl())
-    display(m)
-    display(box)
+    osm = basemap_to_tiles(basemaps.OpenStreetMap.Mapnik)
+    ews = basemap_to_tiles(basemaps.Esri.WorldStreetMap)
+    ewi = basemap_to_tiles(basemaps.Esri.WorldImagery)
+    mb = TileLayer(url="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWNhbnR5IiwiYSI6ImNpcjRsMmJxazAwM3hoeW05aDA1cmNkNzMifQ.d2UbIugbQFk2lnU8uHwCsQ",
+                   attribution = "<a href='https://www.mapbox.com/about/maps/'>Mapbox</a> © <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap</a> <strong><a href='https://www.mapbox.com/map-feedback/' target='_blank'>Improve this map</a></strong>" )
+#    sm_control = SplitMapControl(left_layer=osm,right_layer=ewi)
+    lc = LayersControl(position='topright')
+    fs = FullScreenControl(position='topleft')
+    mc = MeasureControl(position='topright',primary_length_unit = 'kilometers')
+
+    m = Map(center=center, zoom=11, layout={'height':'500px'},layers=(ewi,ews,osm),controls=(mc,dc,lc,fs))   
+#    m = Map(center=center, zoom=11, layout={'height':'500px'},controls=(lc,dc,fs,mc,sm_control)) 
+    display(m) 
+    return box
     

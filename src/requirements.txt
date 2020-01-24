@@ -36,7 +36,7 @@ httplib2==0.14.0
 idna==2.8
 importlib-metadata==0.23
 ipykernel==5.1.2
-ipyleaflet==0.9.0
+ipyleaflet==0.12.1
 ipyparallel==6.2.4
 ipython==7.8.0
 ipython-genutils==0.2.0

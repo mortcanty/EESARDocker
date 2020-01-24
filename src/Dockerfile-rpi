@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
 # jupyter notebook with leaflet
 RUN     pip3 install --upgrade pip
 RUN     pip3 install jupyter==1.0
-RUN     pip3 install ipyleaflet==0.9.0
+RUN     pip3 install ipyleaflet==0.12.1
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
 
 EXPOSE 8888
@@ -31,7 +31,7 @@ RUN     pip3 install --upgrade setuptools && \
         pip3 install --upgrade oauth2client && \
         pip3 install pyCrypto && \
         apt-get install -y libssl-dev
-RUN     pip3 install earthengine-api==0.1.210
+RUN     pip3 install earthengine-api==0.1.202
 
 RUN     pip3 install sentinelsat
 RUN     pip3 install geopy
