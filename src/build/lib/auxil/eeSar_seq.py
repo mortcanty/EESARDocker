@@ -14,11 +14,9 @@ from ipyleaflet import (Map,DrawControl,TileLayer,
                         LayersControl,
                         MeasureControl,
                         FullScreenControl,
-                        WidgetControl,
                         SplitMapControl)
 from auxil.eeWishart import omnibus
 from geopy.geocoders import photon
-from bqplot import Lines, Figure, LinearScale, OrdinalScale,Axis
 
 ee.Initialize()
 
@@ -89,10 +87,14 @@ dc.rectangle = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fill
 dc.polygon = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fillOpacity": 0.1}}
 dc.on_draw(handle_draw)
 
+# def GetTileLayerUrl(ee_image_object):
+#     map_id = ee.Image(ee_image_object).getMapId()
+#     tile_url_template = "https://earthengine.googleapis.com/map/{mapid}/{{z}}/{{x}}/{{y}}?token={token}"
+#     return tile_url_template.format(**map_id)
+
 def GetTileLayerUrl(ee_image_object):
     map_id = ee.Image(ee_image_object).getMapId()
-    tile_url_template = "https://earthengine.googleapis.com/map/{mapid}/{{z}}/{{x}}/{{y}}?token={token}"
-    return tile_url_template.format(**map_id)
+    return map_id["tile_fetcher"].url_format
 
 w_collection = widgets.Text(
     value='COPERNICUS/S1_GRD',
@@ -131,7 +133,7 @@ w_bmap = widgets.BoundedIntText(
     min=1,
     value=1,
     description='',
-    disabled=False
+    disabled=True
 )
 w_platform = widgets.RadioButtons(
     layout = widgets.Layout(width='25%'),
@@ -244,10 +246,9 @@ w_text = widgets.Textarea(
 w_goto = widgets.Button(description='GoTo')
 w_coll = widgets.HBox([w_collection,w_enl,w_goto,w_location])
 w_opac = widgets.VBox([w_opacity,w_maskchange,w_maskland],layout = widgets.Layout(width='50%'))
-w_profile = widgets.Button(description='Profile',disabled=True)
 w_collect = widgets.Button(description="Collect")
 w_preview = widgets.Button(description="Preview",disabled=True)
-w_poly = widgets.Button(description="ShowPolyBounds")
+w_poly = widgets.Button(description="PrintPolyBounds")
 w_getpoly = widgets.Button(description="GetPolyFromAsset")
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
@@ -257,7 +258,7 @@ w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
 w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_exportscale,w_export_series])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median],layout = widgets.Layout(width='99%'))
-w_run = widgets.HBox([w_collect,w_preview,w_profile,w_getpoly,w_getpolyassetname,w_poly])
+w_run = widgets.HBox([w_collect,w_preview,w_getpoly,w_getpolyassetname,w_poly])
 
 box = widgets.VBox([w_text,w_coll,w_dates,w_orbit,w_signif,w_run,w_exp])
 
@@ -267,7 +268,13 @@ def on_widget_change(b):
     w_export_drv.disabled = True
     w_export_series.disabled = True
     w_preview.disabled = True
-
+    
+def on_changemap_widget_change(b):   
+    if b['new']=='Bitemporal':
+        w_bmap.disabled=False
+    else:
+        w_bmap.disabled=True
+    
 w_orbitpass.observe(on_widget_change,names='value')
 w_platform.observe(on_widget_change,names='value')
 w_relativeorbitnumber.observe(on_widget_change,names='value')
@@ -279,6 +286,7 @@ w_enl.observe(on_widget_change,names='value')
 w_enddate.observe(on_widget_change,names='value')
 w_median.observe(on_widget_change,names='value')
 w_significance.observe(on_widget_change,names='value')
+w_changemap.observe(on_changemap_widget_change,names='value')
 
 def getS1collection(coords):
     return ee.ImageCollection('COPERNICUS/S1_GRD') \
@@ -405,7 +413,7 @@ def on_collect_button_clicked(b):
 #      get GEE S1 archive crs for eventual image series export               
         archive_crs = ee.Image(getS1collection(coords).first()).select(0).projection().crs().getInfo()
 #      run the algorithm        
-        result = ee.Dictionary(omnibus(imList,w_significance.value,w_enl.value,w_median.value))
+        result = omnibus(imList,w_significance.value,w_enl.value,w_median.value)         
         w_preview.disabled = False
         s2_image = None
 #      display collection or S2 
@@ -427,12 +435,7 @@ def on_collect_button_clicked(b):
                 timestamps2 = '20'+timestamp[4:]+timestamp[0:4]
                 txt += '\nSentinel-2 from %s'%timestamps2
         w_text.value = txt  
-        m.add_layer(TileLayer(url=GetTileLayerUrl(vorschau)))
-        w_profile.disabled = True
-        try:
-            m.remove_control(wc)
-        except Exception:
-            pass                        
+        m.add_layer(TileLayer(url=GetTileLayerUrl(vorschau)))           
     except Exception as e:
         w_text.value =  'Error: %s'%e
 
@@ -457,7 +460,7 @@ def on_preview_button_clicked(b):
         smap = ee.Image(result.get('smap')).byte()
         cmap = ee.Image(result.get('cmap')).byte()
         fmap = ee.Image(result.get('fmap')).byte() 
-        bmap = ee.Image(result.get('bmap')).byte()       
+        bmap = ee.Image(result.get('bmap')).byte()        
         palette = jet
         txt = 'Series length: %i images, previewing ...\n'%count
         if w_changemap.value=='First':
@@ -494,214 +497,169 @@ def on_preview_button_clicked(b):
         w_export_ass.disabled = False
         w_export_drv.disabled = False
         w_export_series.disabled = False
-        w_profile.disabled = False
     except Exception as e:
         w_text.value =  'Error: %s'%e
     
 w_preview.on_click(on_preview_button_clicked)   
 
 def on_export_ass_button_clicked(b):
-    background = collectionmean.add(15).divide(15)
-    bgname = 'collectionmean'
-    if w_collection.value == 'COPERNICUS/S1_GRD':  
-        collection1 = getS2collection(coords)
-        count1 = collection1.size().getInfo()
-        if count1>0:
-    #      use sentinel-2 as video background if available                       
-            background = ee.Image(collection1.first()) \
-                                   .clip(poly) \
-                                   .select('B8') 
-            timestamp = background.get('system:time_start').getInfo()
-            timestamp = time.gmtime(int(timestamp)/1000)
-            timestamp = time.strftime('%x', timestamp)
-            bgname = 'sentinel-2 '+ str(timestamp) 
-            background = background.divide(5000)
-    cmaps = ee.Image.cat(cmap,smap,fmap,bmap,background).rename(['cmap','smap','fmap']+timestamplist1[1:]+['background'])                
-    assexport = ee.batch.Export.image.toAsset(cmaps,
-                                description='assetExportTask', 
-                                assetId=w_exportassetsname.value,scale=w_exportscale.value,maxPixels=1e9)
-    assexportid = str(assexport.id)
-    w_text.value= 'Exporting change maps to %s\n task id: %s'%(w_exportassetsname.value,assexportid)
-    assexport.start()  
-    
-#  export metadata to drive
-    if w_collection.value == 'COPERNICUS/S1_GRD': 
-        times = [timestamp[1:9] for timestamp in timestamplist1]
-        metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
-                            'Collection: '+w_collection.value,
-                            'Asset export name: '+w_exportassetsname.value,  
-                            'ENL: '+str(w_enl.value),
-                            'Export scale (m): '+w_exportscale.value,
-                            'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
-                            'Orbit pass: '+w_orbitpass.value,    
-                            'Significance: '+str(w_significance.value),  
-                            'Series length: '+str(len(times)),
-                            'Timestamps: '+str(times)[1:-1],
-                            'Rel orbit numbers: '+str(rons),
-                            'Platform: '+w_platform.value,
-                            'Background image: '+bgname,
-                            'Mean incidence angles: '+str(mean_incidence),
-                            'Used 3x3 median filter: '+str(w_median.value)]) \
-                            .cat(['Polygon:']) \
-                            .cat(poly.getInfo()['coordinates'][0]) 
-    else:
-        metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
-                            'Collection: '+w_collection.value,
-                            'Asset export name: '+w_exportassetsname.value,  
-                            'ENL: '+str(w_enl.value),  
-                            'Export scale (m): '+w_exportscale.value,
-                            'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
-                            'Significance: '+str(w_significance.value),  
-                            'Series length: '+str(count),
-                            'Used 3x3 median filter: '+str(w_median.value)]) 
-    fileNamePrefix=w_exportassetsname.value.replace('/','-')  
-    gdexport = ee.batch.Export.table.toDrive(ee.FeatureCollection(metadata.map(makefeature)),
-                         description='driveExportTask_meta', 
-                         folder = 'EarthEngineImages',
-                         fileNamePrefix=fileNamePrefix )
-    w_text.value += '\n Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))            
-    gdexport.start()                                             
+    try:
+        background = collectionmean.add(15).divide(15)
+        bgname = 'collectionmean'
+        if w_collection.value == 'COPERNICUS/S1_GRD':  
+            collection1 = getS2collection(coords)
+            count1 = collection1.size().getInfo()
+            if count1>0:
+        #      use sentinel-2 as video background if available                       
+                background = ee.Image(collection1.first()) \
+                                       .clip(poly) \
+                                       .select('B8') 
+                timestamp = background.get('system:time_start').getInfo()
+                timestamp = time.gmtime(int(timestamp)/1000)
+                timestamp = time.strftime('%x', timestamp)
+                bgname = 'sentinel-2 '+ str(timestamp) 
+                background = background.divide(5000)
+        cmaps = ee.Image.cat(cmap,smap,fmap,bmap,background).rename(['cmap','smap','fmap']+timestamplist1[1:]+['background'])                
+        assexport = ee.batch.Export.image.toAsset(cmaps.clip(poly),
+                                    description='assetExportTask', 
+                                    assetId=w_exportassetsname.value,scale=w_exportscale.value,maxPixels=1e9)      
+        assexport.start()  
+        w_text.value= 'Exporting change maps to %s\n task id: %s'%(w_exportassetsname.value,str(assexport.id))
+    #  export metadata to drive
+        if w_collection.value == 'COPERNICUS/S1_GRD': 
+            times = [timestamp[1:9] for timestamp in timestamplist1]
+            metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
+                                'Collection: '+w_collection.value,
+                                'Asset export name: '+w_exportassetsname.value,  
+                                'ENL: '+str(w_enl.value),
+                                'Export scale (m): '+str(w_exportscale.value),
+                                'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
+                                'Orbit pass: '+w_orbitpass.value,    
+                                'Significance: '+str(w_significance.value),  
+                                'Series length: '+str(len(times)),
+                                'Timestamps: '+str(times)[1:-1],
+                                'Rel orbit numbers: '+str(rons),
+                                'Platform: '+w_platform.value,
+                                'Background image: '+bgname,
+                                'Mean incidence angles: '+str(mean_incidence),
+                                'Used 3x3 median filter: '+str(w_median.value)]) \
+                                .cat(['Polygon:']) \
+                                .cat(poly.getInfo()['coordinates'][0]) 
+        else:
+            metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
+                                'Collection: '+w_collection.value,
+                                'Asset export name: '+w_exportassetsname.value,  
+                                'ENL: '+str(w_enl.value),  
+                                'Export scale (m): '+w_exportscale.value,
+                                'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
+                                'Significance: '+str(w_significance.value),  
+                                'Series length: '+str(count),
+                                'Used 3x3 median filter: '+str(w_median.value)]) 
+        fileNamePrefix=w_exportassetsname.value.replace('/','-')  
+        gdexport = ee.batch.Export.table.toDrive(ee.FeatureCollection(metadata.map(makefeature)),
+                             description='driveExportTask_meta', 
+                             folder = 'EarthEngineImages',
+                             fileNamePrefix=fileNamePrefix )        
+        gdexport.start()
+        w_text.value += '\n Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))    
+    except Exception as e:
+        w_text.value =  'Error: %s'%e                                             
     
 w_export_ass.on_click(on_export_ass_button_clicked) 
 
 def on_export_drv_button_clicked(b):
-    cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])  
-    fileNamePrefix=w_exportdrivename.value.replace('/','-')            
-    gdexport = ee.batch.Export.image.toDrive(cmaps.byte(),
-                                description='driveExportTask', 
-                                folder = 'EarthEngineImages',
-                                fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
-    w_text.value= 'Exporting change maps to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)) 
-    gdexport.start()   
-#  export metadata to drive
-    if w_collection.value == 'COPERNICUS/S1_GRD': 
-        times = [timestamp[1:9] for timestamp in timestamplist1]
-        metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
-                            'Collection: '+w_collection.value,
-                            'Drive export name: '+w_exportdrivename.value,  
-                            'ENL: '+str(w_enl.value),
-                            'Export scale (m): '+w_exportscale.value,
-                            'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
-                            'Orbit pass: '+w_orbitpass.value,    
-                            'Significance: '+str(w_significance.value),  
-                            'Series length: '+str(len(times)),
-                            'Timestamps: '+str(times)[1:-1],
-                            'Rel orbit number(s): '+str(rons),
-                            'Platform: '+w_platform.value,
-                            'Mean incidence angles: '+str(mean_incidence),
-                            'Used 3x3 median filter: '+str(w_median.value)]) \
-                            .cat(['Polygon:']) \
-                            .cat(poly.getInfo()['coordinates'][0]) 
-    else:
-        metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
-                            'Collection: '+w_collection.value,
-                            'Drive export name: '+w_exportdrivename.value,  
-                            'ENL: '+str(w_enl.value),  
-                            'Export scale (m): '+w_exportscale.value,
-                            'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
-                            'Significance: '+str(w_significance.value),  
-                            'Series length: '+str(count),
-                            'Used 3x3 median filter: '+str(w_median.value)]) 
-    fileNamePrefix=w_exportdrivename.value.replace('/','-')  
-    gdexport = ee.batch.Export.table.toDrive(ee.FeatureCollection(metadata.map(makefeature)),
-                         description='driveExportTask_meta', 
-                         folder = 'EarthEngineImages',
-                         fileNamePrefix=fileNamePrefix )
-    w_text.value += '\n Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))            
-    gdexport.start()         
+    try:
+        cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])  
+        fileNamePrefix=w_exportdrivename.value.replace('/','-')            
+        gdexport = ee.batch.Export.image.toDrive(cmaps.byte(),
+                                    description='driveExportTask', 
+                                    folder = 'EarthEngineImages',
+                                    fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
+        w_text.value= 'Exporting change maps to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)) 
+        gdexport.start()   
+    #  export metadata to drive
+        if w_collection.value == 'COPERNICUS/S1_GRD': 
+            times = [timestamp[1:9] for timestamp in timestamplist1]
+            metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
+                                'Collection: '+w_collection.value,
+                                'Drive export name: '+w_exportdrivename.value,  
+                                'ENL: '+str(w_enl.value),
+                                'Export scale (m): '+w_exportscale.value,
+                                'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
+                                'Orbit pass: '+w_orbitpass.value,    
+                                'Significance: '+str(w_significance.value),  
+                                'Series length: '+str(len(times)),
+                                'Timestamps: '+str(times)[1:-1],
+                                'Rel orbit number(s): '+str(rons),
+                                'Platform: '+w_platform.value,
+                                'Mean incidence angles: '+str(mean_incidence),
+                                'Used 3x3 median filter: '+str(w_median.value)]) \
+                                .cat(['Polygon:']) \
+                                .cat(poly.getInfo()['coordinates'][0]) 
+        else:
+            metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
+                                'Collection: '+w_collection.value,
+                                'Drive export name: '+w_exportdrivename.value,  
+                                'ENL: '+str(w_enl.value),  
+                                'Export scale (m): '+w_exportscale.value,
+                                'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
+                                'Significance: '+str(w_significance.value),  
+                                'Series length: '+str(count),
+                                'Used 3x3 median filter: '+str(w_median.value)]) 
+        fileNamePrefix=w_exportdrivename.value.replace('/','-')  
+        gdexport = ee.batch.Export.table.toDrive(ee.FeatureCollection(metadata.map(makefeature)),
+                             description='driveExportTask_meta', 
+                             folder = 'EarthEngineImages',
+                             fileNamePrefix=fileNamePrefix )
+        gdexport.start()
+        w_text.value += '\n Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))                   
+    except Exception as e:
+        w_text.value =  'Error: %s'%e         
 
 w_export_drv.on_click(on_export_drv_button_clicked) 
 
 def on_export_series_button_clicked(b):
-    imlist = ee.List(imList)
-    w_text.value = 'Exporting time series of %i images to Drive'%count
-    for i in range(count):
-        if i<10:
-            pad = '0'
-        else:
-            pad = ''
-        image = ee.Image(imlist.get(i))
-        gdexport1 = ee.batch.Export.image.toDrive(image,
-                                                  description='driveExportTask_series_'+pad+str(i), 
-                                                  folder = 'EarthEngineImages',
-                                                  fileNamePrefix = timestamplist1[i]+'_'+w_exportscale.value[:2],
-                                                  crs = archive_crs,
-                                                  scale = w_exportscale.value,
-                                                  maxPixels = 1e10)
-        gdexport1.start()  
-    if s2_image is not None:
-        w_text.value += '\n Exporting s2 image to Drive'
-        gdexport2 = ee.batch.Export.image.toDrive(s2_image,
-                                                  description='driveExportTask_s2', 
-                                                  folder = 'EarthEngineImages',
-                                                  fileNamePrefix = 'T'+timestamps2+'_s2',
-                                                  crs = archive_crs,
-                                                  scale = w_exportscale.value,
-                                                  maxPixels = 1e10)
-        gdexport2.start()          
+    try:
+        imlist = ee.List(imList)
+        w_text.value = 'Exporting time series of %i images to Drive'%count
+        for i in range(count):
+            if i<10:
+                pad = '0'
+            else:
+                pad = ''
+            image = ee.Image(imlist.get(i))
+            gdexport1 = ee.batch.Export.image.toDrive(image,
+                                                      description='driveExportTask_series_'+pad+str(i), 
+                                                      folder = 'EarthEngineImages',
+                                                      fileNamePrefix = timestamplist1[i],
+                                                      crs = archive_crs,
+                                                      scale = w_exportscale.value,
+                                                      maxPixels = 1e10)
+            gdexport1.start()  
+        if s2_image is not None:
+            w_text.value += '\n Exporting s2 image to Drive'
+            gdexport2 = ee.batch.Export.image.toDrive(s2_image,
+                                                      description='driveExportTask_s2', 
+                                                      folder = 'EarthEngineImages',
+                                                      fileNamePrefix = 'T'+timestamps2+'_s2',
+                                                      crs = archive_crs,
+                                                      scale = w_exportscale.value,
+                                                      maxPixels = 1e10)
+            gdexport2.start()          
+    except Exception as e:
+        w_text.value =  'Error: %s'%e
             
 w_export_series.on_click(on_export_series_button_clicked)     
 
-def on_profile_button_clicked(b):
-    global wc
-    try:
-        m.remove_control(wc)
-    except Exception:     
-        try:
-            w_text.value = 'Profiling, please wait ...'
-            z = bmap.multiply(0).rename(timestamplist1[1:])
-            bmap1 = z.where(bmap.eq(1),1) 
-            bmap2 = z.where(bmap.eq(2),1)
-            bmap3 = z.where(bmap.eq(3),1)
-            bmap0 = z.where(bmap.gt(0),1)
-            profile1 = ee.Dictionary(bmap1.reduceRegion(ee.Reducer.mean(),geometry=poly,scale=w_exportscale.value,tileScale=4,maxPixels=1e9)) \
-                .toArray().getInfo() 
-            profile2 = ee.Dictionary(bmap2.reduceRegion(ee.Reducer.mean(),geometry=poly,scale=w_exportscale.value,tileScale=4,maxPixels=1e9)) \
-                 .toArray().getInfo() 
-            profile3 = ee.Dictionary(bmap3.reduceRegion(ee.Reducer.mean(),geometry=poly,scale=w_exportscale.value,tileScale=4,maxPixels=1e9)) \
-                 .toArray().getInfo()
-            profile0 = ee.Dictionary(bmap0.reduceRegion(ee.Reducer.mean(),geometry=poly,scale=w_exportscale.value,tileScale=4,maxPixels=1e9)) \
-                 .toArray().getInfo()     
-            x_data = range(1,count) 
-            x_sc = OrdinalScale()
-            y_sc = LinearScale()    
-            ax_x = Axis(label='Interval', scale=x_sc)
-            ax_y = Axis(scale=y_sc, orientation='vertical', tick_format='0.4f')    
-            line1 = Lines(x=x_data,
-                          y=profile1,
-                          scales={'x': x_sc, 'y': y_sc},
-                          colors=['red'])   
-            line2 = Lines(x=x_data,
-                          y=profile2,
-                          scales={'x': x_sc, 'y': y_sc},
-                          colors=['green']) 
-            line3 = Lines(x=x_data,
-                          y=profile3,
-                          scales={'x': x_sc, 'y': y_sc},
-                          colors=['yellow'])
-            line0 = Lines(x=x_data,
-                          y=profile0,
-                          scales={'x': x_sc, 'y': y_sc},
-                          colors=['black'])
-            fig = Figure(axes=[ax_x, ax_y], marks=[line1,line2,line3,line0],title='Change Fractions',
-                                          layout={'max_height': '300px', 'max_width':'600px','min_width': '600px'})
-            wc = WidgetControl(widget=fig,position='bottomright')
-            m.add_control(wc)
-            w_text.value = 'Profile done'
-        except Exception:
-            pass   
-    
-w_profile.on_click(on_profile_button_clicked)    
                           
-
 def run():
     global m,dc,center,fig,line
     center = list(reversed(poly.centroid().coordinates().getInfo()))
     osm = basemap_to_tiles(basemaps.OpenStreetMap.Mapnik)
     ews = basemap_to_tiles(basemaps.Esri.WorldStreetMap)
     ewi = basemap_to_tiles(basemaps.Esri.WorldImagery)
-    mb = TileLayer(url="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWNhbnR5IiwiYSI6ImNpcjRsMmJxazAwM3hoeW05aDA1cmNkNzMifQ.d2UbIugbQFk2lnU8uHwCsQ",
-                   attribution = "<a href='https://www.mapbox.com/about/maps/'>Mapbox</a> © <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap</a> <strong><a href='https://www.mapbox.com/map-feedback/' target='_blank'>Improve this map</a></strong>" )
+#    mb = TileLayer(url="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWNhbnR5IiwiYSI6ImNpcjRsMmJxazAwM3hoeW05aDA1cmNkNzMifQ.d2UbIugbQFk2lnU8uHwCsQ",
+#                   attribution = "<a href='https://www.mapbox.com/about/maps/'>Mapbox</a> © <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap</a> <strong><a href='https://www.mapbox.com/map-feedback/' target='_blank'>Improve this map</a></strong>" )
 #    sm_control = SplitMapControl(left_layer=osm,right_layer=ewi)
     lc = LayersControl(position='topright')
     fs = FullScreenControl(position='topleft')

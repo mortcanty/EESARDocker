@@ -190,7 +190,9 @@ def filter_ell(current,prev):
                                                                        'bmap':result.get('bmap')})
 
 def dmap_iter(current,prev):
-    '''post-process for directional change maps'''
+    '''
+post-process for directional change maps
+    '''
     prev = ee.Dictionary(prev)
     j = ee.Number(prev.get('j'))
     image = ee.Image(current) 
@@ -222,7 +224,9 @@ def dmap_iter(current,prev):
     return ee.Dictionary({'avimg':avimg,'bmap':bmap,'j':j.add(1),'r':r})
 
 def omnibus(imList,significance=0.0001,enl=4.4,median=False):
-    '''return change maps for sequential omnibus change algorithm''' 
+    '''
+return change maps for sequential omnibus change algorithm
+    ''' 
     imList = ee.List(imList)  
     k = imList.length()  
 #  pre-calculate p-value array    
@@ -242,7 +246,9 @@ def omnibus(imList,significance=0.0001,enl=4.4,median=False):
     bmap = ee.Image(result.get('bmap')) 
     r = ee.Image(cmap.multiply(0).add(1))
     first = ee.Dictionary({'avimg':imList.get(0),'bmap':bmap,'j':ee.Number(0),'r':r})  
-    dmap = ee.Dictionary(imList.slice(1).iterate(dmap_iter,first)).get('bmap')     
+    tmp = ee.Dictionary(imList.slice(1).iterate(dmap_iter,first))
+    dmap = tmp.get('bmap')  
+    avimgs = tmp.get('avimgs')      
     return result.set('bmap',ee.Image(dmap))
 
 if __name__ == '__main__':
