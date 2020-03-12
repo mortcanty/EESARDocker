@@ -2,7 +2,7 @@
 #******************************************************************************
 #  Name:     scatterplot.py
 #  Purpose:  
-#    Display a scatterplot of two ms bands      via similarity warping.
+#    Display a scatterplot of two ms bands
 #
 #  Usage:        
 #    python scatterplot.py [OPTIONS] filename1 [filename2] band1 band2

@@ -42,7 +42,20 @@ def make_image(redband,greenband,blueband,rows,cols,enhance):
             tmp = tmp.ravel()                
             X[:,i] = auxil.histeqstr(tmp) 
             i += 1
-    elif enhance == 'logarithmic':   
+    elif enhance == 'sqrt':
+        i = 0
+        for tmp in [redband,greenband,blueband]:     
+            tmp = tmp.ravel() 
+            tmp = np.sqrt(tmp)            
+            mn = np.min(tmp)
+            mx = np.max(tmp)
+            if mx-mn > 0:
+                tmp = (tmp-mn)*255.0/(mx-mn)    
+            tmp = np.where(tmp<0,0,tmp)  
+            tmp = np.where(tmp>255,255,tmp)
+            X[:,i] = auxil.lin2pcstr(tmp) 
+            i += 1
+    elif (enhance == 'logarithmic2pc') or (enhance == 'logarithmic'):   
         i = 0
         for tmp in [redband,greenband,blueband]:     
             tmp = tmp.ravel() 
@@ -53,14 +66,18 @@ def make_image(redband,greenband,blueband,rows,cols,enhance):
             tmp[idx] = np.mean(tmp)  # get rid of black edges
             idx = np.where(tmp > 0)
             tmp[idx] = np.log(tmp[idx])            
-            mn =np.min(tmp)
+            mn = np.min(tmp)
             mx = np.max(tmp)
             if mx-mn > 0:
                 tmp = (tmp-mn)*255.0/(mx-mn)    
             tmp = np.where(tmp<0,0,tmp)  
             tmp = np.where(tmp>255,255,tmp)
-#          2% linear stretch   
-            X[:,i] = auxil.lin2pcstr(tmp)        
+            if enhance == 'logarithmic2pc':
+#              2% linear stretch   
+                X[:,i] = auxil.lin2pcstr(tmp) 
+            else:
+#              no stretch                
+                X[:,i] = tmp       
             i += 1                           
     return np.reshape(X,(rows,cols,3))/255.
 
@@ -105,7 +122,11 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
     elif enhance == 4:
         enhance1 = 'equalization'
     elif enhance == 5:
-        enhance1 = 'logarithmic'   
+        enhance1 = 'logarithmic2pc'   
+    elif enhance == 6:
+        enhance1 = 'logarithmic'
+    elif enhance == 7:
+        enhance1 = 'sqrt'
     else:
         enhance = 'linear2pc' 
     try:  
@@ -148,9 +169,13 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
         elif enhance == 4:
             enhance2 = 'equalization'
         elif enhance == 5:
-            enhance2 = 'logarithmic'    
+            enhance2 = 'logarithmic2pc' 
+        elif enhance == 6:
+            enhance2 = 'logarithmic'  
+        elif enhance == 7:
+            enhance2 = 'sqrt' 
         else:
-            enhance = 'logarithmic'          
+            enhance = 'linear2pc'          
         try:  
             if CLS is None:
                 redband   = np.nan_to_num(inDataset2.GetRasterBand(r).ReadAsArray(x0,y0,cols,rows))
@@ -246,7 +271,9 @@ Options:
   -F  <string>  right-hand image filename, if present
   -e  <int>     left enhancement (1=linear255 2=linear 
                 3=linear2pc saturation 4=histogram equalization 
-                5=logarithmic (default)
+                5=logarithmic2ps (default)
+                6=logarithmic
+                7=square root
   -E  <int>     right ditto 
   -p  <list>    left RGB band positions e.g. -p [1,2,3]
   -P  <list>    right ditto
@@ -256,7 +283,7 @@ Options:
   -c            right display as classification image
   -C            left ditto
   -o  <float>   overlay left image onto right with opacity
-  -r  <list>    class labels (list of strings)
+  -r  <string>  class labels (a string evaluating to a list of strings)
   -s  <string>  save to a file in EPS format      
   
   -------------------------------------'''%sys.argv[0]

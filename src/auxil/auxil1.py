@@ -493,6 +493,26 @@ def lin2pcstr(x):
     fp = np.where(bin_edges>=upper,255,fp)
     return np.interp(x,bin_edges,fp)     
 
+def lin1pcstr(x):
+#  1% linear stretch
+    x = bytestr(x)
+    hist,bin_edges = np.histogram(x,256,(0,256))
+    cdf = hist.cumsum()
+    lower = 0
+    i = 0
+    while cdf[i] < 0.01*cdf[-1]:
+        lower += 1
+        i += 1
+    upper = 255
+    i = 255
+    while cdf[i] > 0.99*cdf[-1]:
+        upper -= 1
+        i -= 1
+    fp = (bin_edges-lower)*255/(upper-lower)
+    fp = np.where(bin_edges<=lower,0,fp)
+    fp = np.where(bin_edges>=upper,255,fp)
+    return np.interp(x,bin_edges,fp)  
+
 def bytestr(arr,rng=None):
 #  byte stretch image numpy array
     shp = arr.shape

@@ -197,7 +197,9 @@ post-process for directional change maps
     j = ee.Number(prev.get('j'))
     image = ee.Image(current) 
     p = image.bandNames().length()  
-    avimg = ee.Image(prev.get('avimg'))
+    avimgs = ee.List(prev.get('avimgs'))
+    avimg = ee.Image(avimgs.get(-1))
+    avimglog = ee.Image(prev.get('avimglog'))
     diff = image.subtract(avimg)    
 #  positive/negative definiteness from pivots      
     posd = ee.Image(ee.Algorithms.If(p.eq(1),det(diff).gt(0),False))
@@ -207,6 +209,7 @@ post-process for directional change maps
     negd = ee.Image(ee.Algorithms.If(p.eq(2).Or(p.eq(4)),det(diff.select(0)).lt(0).And(det(diff).gt(0)),negd))
     negd = ee.Image(ee.Algorithms.If(p.eq(9),det(diff.select(0)).lt(0).And(det(diff.select(0,1,2,5)).gt(0)).And(det(diff).lt(0)),negd))
     bmap = ee.Image(prev.get('bmap'))
+    k = bmap.bandNames().length().add(1)
     bmapj = bmap.select(j)
     dmap1 = bmapj.multiply(0).add(1)
     dmap2 = bmapj.multiply(0).add(2)
@@ -220,8 +223,9 @@ post-process for directional change maps
     avimg = avimg.add(image.subtract(avimg).divide(r))
 #  reset average image and r array if change occurred
     avimg = avimg.where(bmapj,image)
+    avimglog = avimglog.where(bmapj,k.subtract(j))
     r = r.where(bmapj,1)
-    return ee.Dictionary({'avimg':avimg,'bmap':bmap,'j':j.add(1),'r':r})
+    return ee.Dictionary({'avimgs':avimgs.add(avimg),'avimglog':avimglog,'bmap':bmap,'j':j.add(1),'r':r})
 
 def omnibus(imList,significance=0.0001,enl=4.4,median=False):
     '''
@@ -233,7 +237,7 @@ return change maps for sequential omnibus change algorithm
     ells = ee.List.sequence(1,k.subtract(1))
     first = ee.Dictionary({'k':k,'median':median,'enl':enl,'imList':imList,'pv_arr':ee.List([])}) 
     result = ee.Dictionary(ells.iterate(ells_iter,first))
-    pv_arr = ee.List(result.get('pv_arr'))                                           
+    pv_arr = ee.List(result.get('pv_arr'))           
 #  filter p-values to generate cmap, smap, fmap and bmap
     cmap = ee.Image(imList.get(0)).select(0).multiply(0.0)
     smap = ee.Image(imList.get(0)).select(0).multiply(0.0)
@@ -245,11 +249,12 @@ return change maps for sequential omnibus change algorithm
 #  post-process bmap for change direction
     bmap = ee.Image(result.get('bmap')) 
     r = ee.Image(cmap.multiply(0).add(1))
-    first = ee.Dictionary({'avimg':imList.get(0),'bmap':bmap,'j':ee.Number(0),'r':r})  
-    tmp = ee.Dictionary(imList.slice(1).iterate(dmap_iter,first))
-    dmap = tmp.get('bmap')  
-    avimgs = tmp.get('avimgs')      
-    return result.set('bmap',ee.Image(dmap))
+    first = ee.Dictionary({'avimgs':ee.List([imList.get(0)]),'avimglog':ee.Image.constant(k),'bmap':bmap,'j':ee.Number(0),'r':r}) 
+    tmp = ee.Dictionary(imList.slice(1).iterate(dmap_iter,first)) 
+    dmap = ee.Image(tmp.get('bmap'))  
+    avimgs = ee.List(tmp.get('avimgs'))  
+    avimglog = ee.Image(tmp.get('avimglog'))    
+    return result.set('bmap',dmap).set('avimgs',avimgs).set('avimglog',avimglog)
 
 if __name__ == '__main__':
     pass

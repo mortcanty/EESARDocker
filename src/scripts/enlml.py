@@ -189,11 +189,12 @@ An ENL image will be written to the same directory with '_enl' appended.
     outBand.WriteArray(enl_ml,0,0) 
     outBand.FlushCache() 
     outDataset = None   
-    ya,xa = np.histogram(enl_ml,bins=500)
+    ya,xa = np.histogram(enl_ml,bins=1000)
     ya[0] = 0    
     if graphics:
-        plt.plot(xa[0:-1],ya)
+        plt.plot(xa[20:-1],ya[20:])
         plt.title('Histogram ENL for %s'%infile)
+        plt.xlim([0,50])
         plt.grid()
         plt.show()       
     print( 'ENL image written to: %s'%outfile )             
