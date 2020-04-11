@@ -253,8 +253,8 @@ w_export_series = widgets.Button(description='ExportSeries',disabled=True)
 w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate,w_stride])
 w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
-#w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series,w_export_atsf])
-w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series])
+w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series,w_export_atsf])
+#w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
 w_run = widgets.HBox([w_collect,w_preview,w_getpoly,w_getpolyassetname,w_poly])
 
@@ -463,7 +463,7 @@ def on_preview_button_clicked(b):
         cmap = ee.Image(result.get('cmap')).byte()
         fmap = ee.Image(result.get('fmap')).byte() 
         bmap = ee.Image(result.get('bmap')).byte()   
-        avimg = ee.Image(ee.List(result.get('avimgs')).get(-1))
+        avimg = ee.Image(ee.List(result.get('avimgs')).get(-1)).clip(poly)  
         avimglog = ee.Image(result.get('avimglog')).byte().clip(poly)  
            
         palette = jet
@@ -695,15 +695,15 @@ def on_export_atsf_button_clicked(b):
                                                       scale = w_exportscale.value,
                                                       maxPixels = 1e10)
             gdexport3.start()  
-#         w_text.value += '\nExporting temporal mean to Drive'
-#         gdexport4 = ee.batch.Export.image.toDrive(ee.Image(collectionmean),
-#                                                   description='driveExportTask_mean', 
-#                                                   folder = 'EarthEngineImages',
-#                                                   fileNamePrefix = timestamplist1[-1]+'_mean',
-#                                                   crs = archive_crs,
-#                                                   scale = w_exportscale.value,
-#                                                   maxPixels = 1e10)
-#         gdexport4.start()              
+        w_text.value += '\nExporting last image to Drive'
+        gdexport4 = ee.batch.Export.image.toDrive(ee.Image(img_last),
+                                                  description='driveExportTask_last', 
+                                                  folder = 'EarthEngineImages',
+                                                  fileNamePrefix = timestamplist1[-1],
+                                                  crs = archive_crs,
+                                                  scale = w_exportscale.value,
+                                                  maxPixels = 1e10)
+        gdexport4.start()              
                                 
     except Exception as e:
         w_text.value =  'Error: %s'%e        

@@ -16,7 +16,7 @@ from matplotlib import cm
 import numpy as np
 import auxil.auxil1 as auxil
 
-def make_image(redband,greenband,blueband,rows,cols,enhance):
+def make_image(redband,greenband,blueband,rows,cols,enhance,rng=None):
     X = np.ones((rows*cols,3),dtype=np.uint8) 
     if enhance == 'linear255':
         i = 0
@@ -28,7 +28,7 @@ def make_image(redband,greenband,blueband,rows,cols,enhance):
         i = 0
         for tmp in [redband,greenband,blueband]:             
             tmp = tmp.ravel()  
-            X[:,i] = auxil.linstr(tmp)
+            X[:,i] = auxil.linstr(tmp,rng)
             i += 1
     elif enhance == 'linear2pc':
         i = 0
@@ -111,6 +111,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
     r = int(np.min([r,bands1]))
     g = int(np.min([g,bands1]))
     b = int(np.min([b,bands1]))
+    rng = None
     if enhance == None:
         enhance = 5
     if enhance == 1:
@@ -127,6 +128,9 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
         enhance1 = 'logarithmic'
     elif enhance == 7:
         enhance1 = 'sqrt'
+    elif isinstance(enhance,list):
+        enhance1 = 'linear'
+        rng = enhance   
     else:
         enhance = 'linear2pc' 
     try:  
@@ -145,7 +149,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
     except  Exception as e:
         print( 'Error in dispms: %s'%e  )
         return
-    X1 = make_image(redband,greenband,blueband,rows,cols,enhance1)
+    X1 = make_image(redband,greenband,blueband,rows,cols,enhance1,rng)
     if filename2 is not None:
 #      two images 
         if DIMS == None:      
@@ -156,7 +160,8 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
         r,g,b = RGB
         r = int(np.min([r,bands2]))
         g = int(np.min([g,bands2]))
-        b = int(np.min([b,bands2]))        
+        b = int(np.min([b,bands2]))  
+        rng = None      
         enhance = ENHANCE
         if enhance == None:              
             enhance = 5
@@ -174,6 +179,9 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
             enhance2 = 'logarithmic'  
         elif enhance == 7:
             enhance2 = 'sqrt' 
+        elif isinstance(enhance,list):
+            enhance2 = 'linear'
+            rng = enhance            
         else:
             enhance = 'linear2pc'          
         try:  
@@ -191,7 +199,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
         except  Exception as e:
             print( 'Error in dispms: %s'%e )  
             return
-        X2 = make_image(redband,greenband,blueband,rows,cols,enhance2)  
+        X2 = make_image(redband,greenband,blueband,rows,cols,enhance2,rng)  
         if alpha is not None:
             fig, ax = plt.subplots(figsize=(10,10)) 
             ax.imshow(X2)
@@ -274,6 +282,7 @@ Options:
                 5=logarithmic2ps (default)
                 6=logarithmic
                 7=square root
+     <list>     linear range     
   -E  <int>     right ditto 
   -p  <list>    left RGB band positions e.g. -p [1,2,3]
   -P  <list>    right ditto

@@ -461,9 +461,9 @@ class ATWTArray(object):
 # --------------------
 # contrast enhancement
 # -------------------
-def linstr(x):
+def linstr(x,rng=None):
 # linear stretch
-    return bytestr(x)
+    return bytestr(x,rng)
     
 def histeqstr(x):
     x = bytestr(x)
@@ -485,7 +485,7 @@ def lin2pcstr(x):
         i += 1
     upper = 255
     i = 255
-    while cdf[i] > 0.98*cdf[-1]:
+    while (cdf[i] > 0.98*cdf[-1]) and (upper>100):
         upper -= 1
         i -= 1
     fp = (bin_edges-lower)*255/(upper-lower)
@@ -505,7 +505,7 @@ def lin1pcstr(x):
         i += 1
     upper = 255
     i = 255
-    while cdf[i] > 0.99*cdf[-1]:
+    while (cdf[i] > 0.99*cdf[-1]) and (upper>0):
         upper -= 1
         i -= 1
     fp = (bin_edges-lower)*255/(upper-lower)
