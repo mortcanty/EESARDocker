@@ -1,25 +1,28 @@
 # Dockerfile with Jupyter widget interface for 
 # Sequential SAR on Earth Engine, Raspberry Pi
 
-FROM     balenalib/rpi-raspbian:stretch
+FROM     balenalib/rpi-raspbian
            
 MAINTAINER Mort Canty "mort.canty@gmail.com"
 ENV     REFRESHED_AT 2019-08-01
 
+
 RUN apt-get update && apt-get install -y \
-    python3 \
     build-essential \
+    python3 \
     python3-dev \
     libffi-dev \
     python3-pygments \
     libzmq3-dev \
     pkg-config \
-    python3-pip 
+    python3-pip \
+    libatlas-base-dev
+    
 
 # jupyter notebook with leaflet
 RUN     pip3 install --upgrade pip
-RUN     pip3 install jupyter==1.0
-RUN     pip3 install ipyleaflet==0.12.1
+RUN     pip3 install jupyter
+RUN     pip3 install ipyleaflet
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
 
 EXPOSE 8888
@@ -31,7 +34,7 @@ RUN     pip3 install --upgrade setuptools && \
         pip3 install --upgrade oauth2client && \
         pip3 install pyCrypto && \
         apt-get install -y libssl-dev
-RUN     pip3 install earthengine-api==0.1.202
+RUN     pip3 install earthengine-api
 
 RUN     pip3 install sentinelsat
 RUN     pip3 install geopy

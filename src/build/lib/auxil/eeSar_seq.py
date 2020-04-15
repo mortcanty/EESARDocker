@@ -590,7 +590,7 @@ def on_export_drv_button_clicked(b):
                                 'Collection: '+w_collection.value,
                                 'Drive export name: '+w_exportdrivename.value,  
                                 'ENL: '+str(w_enl.value),
-                                'Export scale (m): '+w_exportscale.value,
+                                'Export scale (m): '+str(w_exportscale.value),
                                 'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
                                 'Orbit pass: '+w_orbitpass.value,    
                                 'Significance: '+str(w_significance.value),  
