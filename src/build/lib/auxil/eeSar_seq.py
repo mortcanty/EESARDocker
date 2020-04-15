@@ -577,12 +577,13 @@ def on_export_drv_button_clicked(b):
     try:
         cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])  
         fileNamePrefix=w_exportdrivename.value.replace('/','-')            
-        gdexport = ee.batch.Export.image.toDrive(cmaps.byte(),
+        gdexport = ee.batch.Export.image.toDrive(cmaps.byte().clip(poly),
                                     description='driveExportTask', 
                                     folder = 'EarthEngineImages',
                                     fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
+        gdexport.start()
         w_text.value= 'Exporting change maps to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)) 
-        gdexport.start()   
+           
     #  export metadata to drive
         if w_collection.value == 'COPERNICUS/S1_GRD': 
             times = [timestamp[1:9] for timestamp in timestamplist1]
@@ -607,7 +608,7 @@ def on_export_drv_button_clicked(b):
                                 'Collection: '+w_collection.value,
                                 'Drive export name: '+w_exportdrivename.value,  
                                 'ENL: '+str(w_enl.value),  
-                                'Export scale (m): '+w_exportscale.value,
+                                'Export scale (m): '+str(w_exportscale.value),
                                 'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
                                 'Significance: '+str(w_significance.value),  
                                 'Series length: '+str(count),

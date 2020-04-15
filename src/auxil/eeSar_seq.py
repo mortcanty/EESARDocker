@@ -577,7 +577,7 @@ def on_export_drv_button_clicked(b):
     try:
         cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])  
         fileNamePrefix=w_exportdrivename.value.replace('/','-')            
-        gdexport = ee.batch.Export.image.toDrive(cmaps.byte(),
+        gdexport = ee.batch.Export.image.toDrive(cmaps.byte().clip(poly),
                                     description='driveExportTask', 
                                     folder = 'EarthEngineImages',
                                     fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
