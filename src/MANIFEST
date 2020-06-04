@@ -7,6 +7,7 @@ auxil/dnn.py
 auxil/eeDownload.py
 auxil/eeRL.py
 auxil/eeSar_seq.py
+auxil/eeSar_seq_old.py
 auxil/eeWishart.py
 auxil/enlml.py
 auxil/lookup.py

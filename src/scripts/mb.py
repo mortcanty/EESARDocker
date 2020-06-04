@@ -68,6 +68,7 @@ Options:
     k = 0  
     for b in pos:      
         g1[:,k] = np.nan_to_num(inDataset.GetRasterBand(b).ReadAsArray(x0,y0,cols,rows).astype(float).ravel())
+ #       g1[:,k] = np.nan_to_num(inDataset.GetRasterBand(b).ReadAsArray(0,0,cols,rows).astype(float).ravel())
         k += 1       
     inDataset = gdal.Open(fn2,GA_ReadOnly)   
     g2 = np.zeros((cols*rows,bands))  

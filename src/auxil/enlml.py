@@ -20,10 +20,11 @@ import matplotlib.pyplot as plt
 from osgeo import gdal
 from osgeo.gdalconst import GA_ReadOnly, GDT_Float32
    
+six = np.array([0,1,2,3,4,5,6])   
+   
 def get_windex(j,cols):
 #  first window for row j    
-    windex = np.zeros(49,dtype=int)
-    six = np.array([0,1,2,3,4,5,6])
+    windex = np.zeros(49,dtype=int)   
     windex[0:7]   = (j-3)*cols + six
     windex[7:14]  = (j-2)*cols + six
     windex[14:21] = (j-1)*cols + six
@@ -34,7 +35,7 @@ def get_windex(j,cols):
     return windex
 
 
-def enl(infile,dims=None,outfile=None,fileout=False,xrange=50,sfn=None):    
+def enl(infile,dims=None,outfile='enl.tif',fileout=False,xrange=50,sfn=None):    
     try:
         gdal.AllRegister()         
         inDataset = gdal.Open(infile,GA_ReadOnly)     

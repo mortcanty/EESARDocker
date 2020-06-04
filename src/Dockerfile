@@ -1,7 +1,7 @@
 # Dockerfile with Jupyter widget interface for 
 # Sequential SAR on Earth Engine
  
-FROM     debian:stretch
+FROM     debian:latest
 
 MAINTAINER Mort Canty "mort.canty@gmail.com"
 
@@ -47,7 +47,7 @@ RUN     rm -rf auxil-1.0
 RUN     rm auxil-1.0.tar.gz
 
 COPY    interface.ipynb /home/interface.ipynb
-COPY    s1class.ipynb /home/s1class.ipynb
+# COPY    s1class.ipynb /home/s1class.ipynb
 ADD     scripts /home/scripts
 
 # ipython notebook startup script
