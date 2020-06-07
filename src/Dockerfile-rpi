@@ -1,7 +1,13 @@
 # Dockerfile with Jupyter widget interface for 
 # Sequential SAR on Earth Engine, Raspberry Pi
 
-FROM     balenalib/rpi-raspbian
+#FROM     balenalib/rpi-raspbian
+
+FROM     balenalib/raspberrypi3-ubuntu:bionic
+
+# rpi-raspian nfg because cerificates not found at authentication
+# must be >= bionic for python >= 33.6
+# matplotlib wants cython, png, freetype
            
 MAINTAINER Mort Canty "mort.canty@gmail.com"
 ENV     REFRESHED_AT 2019-08-01
@@ -16,14 +22,20 @@ RUN apt-get update && apt-get install -y \
     libzmq3-dev \
     pkg-config \
     python3-pip \
-    libatlas-base-dev
-    
+    libfreetype6-dev \
+    pkg-config \
+    libpng-dev \
+    libatlas-base-dev 
 
 # jupyter notebook with leaflet
 RUN     pip3 install --upgrade pip
 RUN     pip3 install jupyter
 RUN     pip3 install ipyleaflet
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
+
+RUN     pip3 install -U cython
+
+RUN     pip3 install matplotlib==3.0.3
 
 EXPOSE 8888
 
@@ -38,6 +50,7 @@ RUN     pip3 install earthengine-api
 
 RUN     pip3 install sentinelsat
 RUN     pip3 install geopy
+
 
 # install auxil
 COPY    dist/auxil-1.0.tar.gz /home/auxil-1.0.tar.gz

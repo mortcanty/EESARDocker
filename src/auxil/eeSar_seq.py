@@ -155,11 +155,6 @@ w_exportassetsname = widgets.Text(
     placeholder=' ',
     disabled=False
 )
-w_getpolyassetname = widgets.Text(
-    value='users/<username>/<path>',
-    placeholder=' ',
-    disabled=False
-)
 w_exportdrivename = widgets.Text(
     layout = widgets.Layout(width='200px'),
     value='EarthEngineImages/<path>',
@@ -247,9 +242,8 @@ w_coll = widgets.HBox([w_collection,w_enl,w_goto,w_location])
 w_opac = widgets.VBox([w_opacity,w_maskchange,w_maskwater],layout = widgets.Layout(width='50%'))
 w_collect = widgets.Button(description="Collect",disabled=True)
 w_preview = widgets.Button(description="Preview",disabled=True)
-w_plot = widgets.Button(description='Plot',disabled=True)
-w_poly = widgets.Button(description="PrintPolyBounds")
-w_getpoly = widgets.Button(description="GetPolyFromAsset")
+w_plot = widgets.Button(description='PlotFromAsset',disabled=False)
+w_poly = widgets.Button(description="AssetPolyBounds")
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
 w_export_series = widgets.Button(description='ExportSeries',disabled=True)
@@ -258,15 +252,14 @@ w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
 w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series,w_export_atsf])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
-w_run = widgets.HBox([w_collect,w_preview,w_plot,w_getpoly,w_getpolyassetname,w_poly])
+w_run = widgets.HBox([w_collect,w_preview,w_plot,w_poly])
 w_reset = widgets.Button(description='Reset',disabled=False)
-w_output = widgets.HBox([w_out,w_reset])
+w_output = widgets.HBox([w_reset,w_out])
 
 box = widgets.VBox([w_output,w_coll,w_dates,w_orbit,w_signif,w_run,w_exp])
 
 def on_widget_change(b):
     w_preview.disabled = True
-    w_plot.disbaled = True
     w_export_ass.disabled = True
     w_export_drv.disabled = True
     w_export_series.disabled = True
@@ -321,26 +314,13 @@ def on_reset_button_clicked(b):
 w_reset.on_click(on_reset_button_clicked)                           
 
 def on_poly_button_clicked(b):
-    global poly
+    asset = w_exportassetsname.value
+    assetpoly = ee.Image(asset).select(0).geometry()
     with w_out:
         w_out.clear_output()
-        print(str(poly.bounds().getInfo()))
+        print(str(assetpoly.bounds().getInfo()))
     
 w_poly.on_click(on_poly_button_clicked)    
-
-def on_getpoly_button_clicked(b):
-    global poly
-    try:
-        asset = w_getpolyassetname.value
-        poly = ee.Image(asset).select(0).geometry()
-        center = poly.centroid().coordinates().reverse().getInfo()
-        m.center = center
-        m.zoom = 11
-    except Exception as e:
-            with w_out:
-                print('Error: %s'%e) 
-    
-w_getpoly.on_click(on_getpoly_button_clicked)    
 
 def on_collect_button_clicked(b):
     global result,collection,count,imList,poly,timestamplist1,timestamps2, \
@@ -436,7 +416,6 @@ def on_collect_button_clicked(b):
             result = omnibus(imList,w_significance.value,w_enl.value,w_median.value)         
             w_preview.disabled = False
             w_export_atsf.disabled = True
-            w_plot.disabled = True
             s2_image = None
 #          display collection or S2 
             if len(m.layers)>3:
@@ -483,7 +462,7 @@ def on_preview_button_clicked(b):
             smap = ee.Image(result.get('smap')).byte()
             cmap = ee.Image(result.get('cmap')).byte()
             fmap = ee.Image(result.get('fmap')).byte() 
-            bmap = ee.Image(result.get('bmap')).byte()   
+            bmap = ee.Image(result.get('bmap')).byte()           
             avimg = ee.Image(ee.List(result.get('avimgs')).get(-1)).clip(poly)  
             avimglog = ee.Image(result.get('avimglog')).byte().clip(poly)                
             palette = jet
@@ -523,7 +502,6 @@ def on_preview_button_clicked(b):
             w_export_drv.disabled = False
             w_export_series.disabled = False
             w_export_atsf.disabled = False
-            w_plot.disabled = False
         except Exception as e:
             print('Error: %s'%e)
     
@@ -531,42 +509,42 @@ w_preview.on_click(on_preview_button_clicked)
 
 def on_plot_button_clicked(b):          
 #  plot change fractions        
-    import matplotlib.pyplot as plt   
+    import matplotlib.pyplot as plt  
+    import numpy as np
+    global bmap1 
     def plot_iter(current,prev):
-        current = ee.Image(current)
-        prev = ee.Dictionary(prev)
-        plots = ee.List(prev.get('plots'))
-        bmap = ee.Image(prev.get('bmap'))
-        zeros = ee.Image(prev.get('zeros'))
-        ones = ee.Image(prev.get('ones'))    
-        res = zeros.where(bmap.eq(current),ones).rename(bns).reduceRegion(ee.Reducer.mean(),scale=w_exportscale.value,tileScale=4,maxPixels=1e9)
-        return ee.Dictionary({'bmap':bmap,'zeros':zeros,'ones':ones,'bns':bns,'plots':plots.add(res)})
+        current = ee.Image.constant(current)
+        plots = ee.List(prev) 
+        res = bmap1.multiply(0) \
+                  .where(bmap1.eq(current),ee.Image.constant(1)) \
+                  .reduceRegion(ee.Reducer.mean(),scale=w_exportscale.value,maxPixels=10e9)
+        return ee.List(plots.add(res))
     with w_out:
         try:
-            w_out.clear_output()
-            bns = [s[1:9] for s in timestamplist1[1:]]
-            print('Change fraction plots (may take a while, please wait) ...')
-            zeros = bmap.multiply(0).clip(poly)
-            ones = zeros.add(1)                 
-            twos = zeros.add(2)
-            threes = zeros.add(3)  
-            first = ee.Dictionary({'bmap':bmap,'zeros':zeros,'ones':ones,'bns':bns,'plots':ee.List([])})           
-            plots = ee.Dictionary(ee.List([ones,twos,threes]).iterate(plot_iter,first)).get('plots').getInfo()           
-            x = range(1,count)
-            plt.figure(figsize=(8,5))     
+            w_out.clear_output()            
+            print('Change fraction plots ...')                  
+            assetImage = ee.Image(w_exportassetsname.value)
+            k = assetImage.bandNames().length().subtract(4).getInfo()            
+            bmap1 = assetImage.select(ee.List.sequence(3,k+2))               
+            plots = ee.List(ee.List([1,2,3]).iterate(plot_iter,ee.List([]))).getInfo()           
+            bns = np.array(list([s[3:9] for s in list(plots[0].keys())])) 
+            x = range(1,k+1)  
+            fig = plt.figure(figsize=(10,5))
             plt.plot(x,list(plots[0].values()),'ro-',label='posdef')
             plt.plot(x,list(plots[1].values()),'go-',label='negdef')
             plt.plot(x,list(plots[2].values()),'yo-',label='indef')        
-            ticks = range(0,count+1)
-            labels = [str(i) for i in range(0,count+1)]
-            labels[0] = ''
-            labels[count] = ''
+            ticks = range(0,k+2)
+            labels = [str(i) for i in range(0,k+2)]
+            labels[0] = ' '
+            labels[-1] = ' '
             labels[1:-1] = bns 
-            plt.xticks(ticks,labels,rotation=60)
+            plt.xticks(ticks,labels,rotation=90)
             plt.legend()
-            plt.savefig('changes.png',bbox_inches='tight') 
-            print('Saved to ~/changes.png')
+            fn = w_exportassetsname.value.replace('/','-')+'.png'
+            plt.savefig(fn,bbox_inches='tight') 
+            w_out.clear_output()
             plt.show()
+            print('Saved to ~/%s'%fn)
         except Exception as e:
             print('Error: %s'%e)               
     
