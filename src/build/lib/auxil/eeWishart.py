@@ -254,7 +254,9 @@ return change maps for sequential omnibus change algorithm
     dmap = ee.Image(tmp.get('bmap'))  
     avimgs = ee.List(tmp.get('avimgs'))  
     avimglog = ee.Image(tmp.get('avimglog'))    
-    return result.set('bmap',dmap).set('avimgs',avimgs).set('avimglog',avimglog)
+#  for control       
+    pvQ = ee.Image(ee.List(pv_arr.get(0)).get(-1))  
+    return result.set('bmap',dmap).set('avimgs',avimgs).set('avimglog',avimglog).set('pvQ',pvQ)
 
 if __name__ == '__main__':
     pass

@@ -50,16 +50,18 @@ class Dnn(object):
             print( 'Error: %s'%e ) 
             return None        
         
-    def history(self):
+    def history(self,sfn=None):
         pd.DataFrame(self._history.history).plot(figsize=(8,5))
         plt.grid(True)
         plt.gca().set_ylim(0,1)
+        if sfn is not None:
+            plt.savefig(sfn,bbox_inches='tight')    
         plt.show()                                               
         
     def classify(self,Gs):     
 #      predict new data                       
         Ms = self._dnn.predict(Gs)
-        cls = np.argmax(Ms,1)+1
+        cls = np.argmax(Ms,1)+1 
         return (cls,Ms)
 
     def test(self,Gs,ls):

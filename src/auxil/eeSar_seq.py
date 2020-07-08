@@ -74,14 +74,13 @@ def makefeature(data):
 
 def handle_draw(self, action, geo_json):
     global poly
+    coords =  geo_json['geometry']['coordinates']
     if action == 'created':
-        coords =  geo_json['geometry']['coordinates']
         poly = ee.Geometry.MultiPolygon(poly.coordinates().add(coords))
         w_preview.disabled = True
         w_export_ass.disabled = True
         w_collect.disabled = False
     elif action == 'deleted':
-        coords =  geo_json['geometry']['coordinates']
         poly1 = ee.Geometry.MultiPolygon(coords)
         poly = poly.difference(poly1)
         if len(poly.coordinates().getInfo()) == 0:
@@ -157,7 +156,7 @@ w_exportassetsname = widgets.Text(
 )
 w_exportdrivename = widgets.Text(
     layout = widgets.Layout(width='200px'),
-    value='EarthEngineImages/<path>',
+    value='gee/<path>',
     placeholder=' ',
     disabled=False
 )
@@ -244,6 +243,7 @@ w_collect = widgets.Button(description="Collect",disabled=True)
 w_preview = widgets.Button(description="Preview",disabled=True)
 w_plot = widgets.Button(description='PlotFromAsset',disabled=False)
 w_poly = widgets.Button(description="AssetPolyBounds")
+w_clearpoly = widgets.Button(description="ClearPoly")
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
 w_export_series = widgets.Button(description='ExportSeries',disabled=True)
@@ -252,7 +252,7 @@ w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
 w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series,w_export_atsf])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
-w_run = widgets.HBox([w_collect,w_preview,w_plot,w_poly])
+w_run = widgets.HBox([w_collect,w_preview,w_plot,w_poly,w_clearpoly])
 w_reset = widgets.Button(description='Reset',disabled=False)
 w_output = widgets.HBox([w_reset,w_out])
 
@@ -313,14 +313,36 @@ def on_reset_button_clicked(b):
         
 w_reset.on_click(on_reset_button_clicked)                           
 
+# def on_poly_button_clicked(b):
+#     asset = w_exportassetsname.value
+#     assetpoly = ee.Image(asset).select(0).geometry()
+#     with w_out:
+#         w_out.clear_output()
+#         print(str(assetpoly.bounds().getInfo()))
+        
 def on_poly_button_clicked(b):
+    global poly
     asset = w_exportassetsname.value
-    assetpoly = ee.Image(asset).select(0).geometry()
+    poly = ee.Image(asset).select(0).geometry()
     with w_out:
         w_out.clear_output()
-        print(str(assetpoly.bounds().getInfo()))
+        print(str(poly.bounds().getInfo()))    
+    center = poly.centroid().coordinates().reverse().getInfo()    
+    m.center = center
+    m.zoom = 11  
+    w_collect.disabled = False      
     
 w_poly.on_click(on_poly_button_clicked)    
+
+def on_clearpoly_button_clicked(b):
+    global poly
+    poly = ee.Geometry.MultiPolygon([])
+    with w_out:
+        w_out.clear_output()
+        print('Algorithm output')    
+    w_collect.disabled = True      
+    
+w_clearpoly.on_click(on_clearpoly_button_clicked)    
 
 def on_collect_button_clicked(b):
     global result,collection,count,imList,poly,timestamplist1,timestamps2, \
@@ -380,8 +402,8 @@ def on_collect_button_clicked(b):
                 vorschau = collectionmean.select(0).visualize(min=mn, max=mx, opacity=w_opacity.value) 
             else:
                 w_out.clear_output()
-                print('running on local collection (please wait for raster overlay) ...')
                 collection = ee.ImageCollection(w_collection.value)
+                print('running on local collection %s \n ignoring start and end dates (please wait for raster overlay) ...'%w_collection.value)  
                 count = collection.size().getInfo()  
                 print('Images found: %i'%count )          
                 collectionfirst = ee.Image(collection.first())  
@@ -453,7 +475,7 @@ def on_goto_button_clicked(b):
 w_goto.on_click(on_goto_button_clicked)
 
 def on_preview_button_clicked(b):
-    global cmap,smap,fmap,bmap,avimg,avimglog,count,watermask
+    global cmap,smap,fmap,bmap,avimg,pvQ,avimglog,count,watermask
     watermask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)  
     with w_out:  
         try:       
@@ -462,9 +484,12 @@ def on_preview_button_clicked(b):
             smap = ee.Image(result.get('smap')).byte()
             cmap = ee.Image(result.get('cmap')).byte()
             fmap = ee.Image(result.get('fmap')).byte() 
-            bmap = ee.Image(result.get('bmap')).byte()           
+            bmap = ee.Image(result.get('bmap')).byte()   
+#          the atsf                    
             avimg = ee.Image(ee.List(result.get('avimgs')).get(-1)).clip(poly)  
-            avimglog = ee.Image(result.get('avimglog')).byte().clip(poly)                
+            avimglog = ee.Image(result.get('avimglog')).byte().clip(poly)     
+#          for control           
+            pvQ =  ee.Image(result.get('pvQ'))              
             palette = jet
             w_out.clear_output()
             print('Series length: %i images, previewing (please wait for raster overlay) ...'%count)
@@ -612,7 +637,7 @@ def on_export_ass_button_clicked(b):
                              fileNamePrefix=fileNamePrefix )        
         gdexport.start()
         with w_out:
-            print('Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)))    
+            print('Exporting metadata to Drive/gee/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)))    
     except Exception as e:
         with w_out:
             print('Error: %s'%e)                                          
@@ -625,14 +650,24 @@ def on_export_drv_button_clicked(b):
         fileNamePrefix=w_exportdrivename.value.replace('/','-')            
         gdexport = ee.batch.Export.image.toDrive(cmaps.byte().clip(poly),
                                     description='driveExportTask', 
-                                    folder = 'EarthEngineImages',
+                                    folder = 'gee',
                                     fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
         gdexport.start()
         with w_out:
             w_out.clear_output()
             print('Exporting change maps to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))) 
+            
+#      for Allan             
+        fileNamePrefix=w_exportdrivename.value.replace('/','-')+'_pvQ'            
+        gdexport = ee.batch.Export.image.toDrive(pvQ.clip(poly),
+                                    description='driveExportTask', 
+                                    folder = 'gee',
+                                    fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
+        gdexport.start()
+        with w_out:
+            print('Exporting omnibus p-value to Drive/gee/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)))     
            
-    #  export metadata to drive
+#      export metadata to drive
         if w_collection.value == 'COPERNICUS/S1_GRD': 
             times = [timestamp[1:9] for timestamp in timestamplist1]
             metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
@@ -664,11 +699,11 @@ def on_export_drv_button_clicked(b):
         fileNamePrefix=w_exportdrivename.value.replace('/','-')  
         gdexport = ee.batch.Export.table.toDrive(ee.FeatureCollection(metadata.map(makefeature)),
                              description='driveExportTask_meta', 
-                             folder = 'EarthEngineImages',
+                             folder = 'gee',
                              fileNamePrefix=fileNamePrefix )
         gdexport.start()
         with w_out:
-            print('Exporting metadata to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)))                   
+            print('Exporting metadata to Drive/gee/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)))                   
     except Exception as e:
         with w_out:
             print('Error: %s'%e) 
