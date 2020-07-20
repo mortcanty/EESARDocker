@@ -633,7 +633,7 @@ def on_export_ass_button_clicked(b):
         fileNamePrefix=w_exportassetsname.value.replace('/','-')  
         gdexport = ee.batch.Export.table.toDrive(ee.FeatureCollection(metadata.map(makefeature)),
                              description='driveExportTask_meta', 
-                             folder = 'EarthEngineImages',
+                             folder = 'gee',
                              fileNamePrefix=fileNamePrefix )        
         gdexport.start()
         with w_out:
@@ -724,7 +724,7 @@ def on_export_series_button_clicked(b):
             image = ee.Image(imlist.get(i))
             gdexport1 = ee.batch.Export.image.toDrive(image,
                                                       description='driveExportTask_series_'+pad+str(i), 
-                                                      folder = 'EarthEngineImages',
+                                                      folder = 'gee',
                                                       fileNamePrefix = timestamplist1[i],
                                                       crs = archive_crs,
                                                       scale = w_exportscale.value,
@@ -735,7 +735,7 @@ def on_export_series_button_clicked(b):
                 print('Exporting s2 image to Drive')
             gdexport2 = ee.batch.Export.image.toDrive(s2_image,
                                                       description='driveExportTask_s2', 
-                                                      folder = 'EarthEngineImages',
+                                                      folder = 'gee',
                                                       fileNamePrefix = 'T'+timestamps2+'_s2',
                                                       crs = archive_crs,
                                                       scale = w_exportscale.value,
@@ -762,7 +762,7 @@ def on_export_atsf_button_clicked(b):
             print('Exporting ATSF (adaptive temporal speckle filter) image to Drive')            
             gdexport1 = ee.batch.Export.image.toDrive(img_atsf,
                                                       description='driveExportTask_atsf', 
-                                                      folder = 'EarthEngineImages',
+                                                      folder = 'gee',
                                                       fileNamePrefix = timestamplist1[-1]+'_atsf',
                                                       crs = archive_crs,
                                                       scale = w_exportscale.value,
@@ -771,7 +771,7 @@ def on_export_atsf_button_clicked(b):
             print('Exporting ATSF log image to Drive')
             gdexport2 = ee.batch.Export.image.toDrive(ee.Image(img_log),
                                                       description='driveExportTask_atsf_log', 
-                                                      folder = 'EarthEngineImages',
+                                                      folder = 'gee',
                                                       fileNamePrefix = timestamplist1[-1]+'_atsf_log',
                                                       crs = archive_crs,
                                                       scale = w_exportscale.value,
@@ -781,7 +781,7 @@ def on_export_atsf_button_clicked(b):
                 print('Exporting hybrid image to Drive')
                 gdexport3 = ee.batch.Export.image.toDrive(ee.Image(img_hybrid),
                                                           description='driveExportTask_atsf_hybrid', 
-                                                          folder = 'EarthEngineImages',
+                                                          folder = 'gee',
                                                           fileNamePrefix = timestamplist1[-1]+'_atsf_hybrid',
                                                           crs = archive_crs,
                                                           scale = w_exportscale.value,

@@ -219,7 +219,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
                 cbar.set_ticklabels(ticklabels)                            
             else:
                 ax.imshow(X1-0.01,alpha=alpha)
-            ax.set_title('%s: %s: %s: %s\n'%(os.path.basename(filename1),enhance1, str(rgb), str(dims)))            
+ #           ax.set_title('%s: %s: %s: %s\n'%(os.path.basename(filename1),enhance1, str(rgb), str(dims)))            
         else:    
             fig, ax = plt.subplots(1,2,figsize=(20,10))
             if cls:
@@ -229,7 +229,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
                 cax.set_clim(0.0,1.0)              
             else:
                 ax[0].imshow(X1)             
-            ax[0].set_title('%s: %s: %s:  %s\n'%(os.path.basename(filename1),enhance1, str(rgb), str(dims)))           
+#            ax[0].set_title('%s: %s: %s:  %s\n'%(os.path.basename(filename1),enhance1, str(rgb), str(dims)))           
             if CLS:
                 cmap = cm.get_cmap('jet')
                 cmap.set_under('black')
@@ -237,7 +237,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
                 cax.set_clim(0.01,1.0)                         
             else:          
                 ax[1].imshow(X2)             
-            ax[1].set_title('%s: %s: %s:  %s\n'%(os.path.basename(filename2),enhance2, str(RGB), str(DIMS)))
+#            ax[1].set_title('%s: %s: %s:  %s\n'%(os.path.basename(filename2),enhance2, str(RGB), str(DIMS)))
     else:
 #      one image
         fig,ax = plt.subplots(figsize=(10,10)) 
@@ -258,7 +258,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
         fn = os.path.basename(filename1) 
         if len(fn)>40:
             fn = fn[:37]+' ... '
-        ax.set_title('%s: %s: %s: %s\n'%(fn,enhance1, str(rgb), str(dims))) 
+#        ax.set_title('%s: %s: %s: %s\n'%(fn,enhance1, str(rgb), str(dims))) 
     if sfn is not None:
         plt.savefig(sfn,bbox_inches='tight')       
     plt.show()                 

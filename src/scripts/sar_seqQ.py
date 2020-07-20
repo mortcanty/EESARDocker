@@ -2,13 +2,14 @@
 #******************************************************************************
 #  Name:     sar_seqQ.py
 #  Purpose:  Perform sequential change detection on multi-temporal, polarimetric SAR imagery 
-#            Determine time(s) at which change occurred, see
+#            Determine time(s) at which change occurred as well as direction(Loewner order), see
 #            Condradsen et al. (2016) IEEE Transactions on Geoscience and Remote Sensing,
 #            Vol. 54 No. 5 pp. 3007-3024
+#            Nielsen et al. (2020) IEEE Geoscience and Remote Sensing Letters 17(2), 242-246 
 #            Tests based both upon Rj and Q = Prod(Rj)   
 #
 #  Usage:             
-#    python sar_seqQ.py [OPTIONS] filenamelist enl
+#    python sar_seqQ.py [OPTIONS] filenames enl
 #
 # MIT License
 # 
@@ -378,7 +379,7 @@ enl:
         print( 'Error: %s  -- Could not read file'%e)
         sys.exit(1)    
     if dims is not None:
-#  images are not yet co-registered, so subset first image and register the others
+#      images are assumed not yet co-registered, so subset first image and register the others
         _,_,cols,rows = dims
         fn0 = subset.subset(fns[0],dims)
         args1 = [(fns[0],fns[i],dims) for i in range(1,k)]
@@ -415,7 +416,7 @@ enl:
     elif bands==2:
         print( 'Dual polarization, diagonal only' )
     else:
-        print( 'Intensity image' )
+        print( 'Intensity images' )
 #  output file
     path = os.path.abspath(fns[0])    
     dirn = os.path.dirname(path)
@@ -430,9 +431,9 @@ enl:
         c = Client()
         print( 'available engines %s'%str(c.ids) )
         v = c[:]   
-        print( 'ell = ', flush=True )     
+        print( 'ell = ', end=' ' )     
         for i in range(k-1):  
-            print( i+1, flush=True )               
+            print( i+1, end=' ' )               
             args1 = [(fns[i:j+2],n,cols,rows,bands) for j in range(i,k-1)]         
             results = v.map_sync(PV,args1) # list of tuples (p-value, lnRj)
             pvs = [result[0] for result in results] 
@@ -446,7 +447,7 @@ enl:
             pvarray[i,k-1,:] = pvQ.ravel()    
     except Exception as e: 
         print( '%s \nfailed, so running sequential calculation ...'%e )  
-        print( 'ell= ', flush=True)  
+        print( 'ell= ', end=' ')  
         for i in range(k-1):        
             print( i+1, flush=True)   
             args1 = [(fns[i:j+2],n,cols,rows,bands) for j in range(i,k-1)]                         
@@ -470,6 +471,7 @@ enl:
         img = getimg(fns[i+1])
         direct = loewner(img-avimg)
         bmap[:,i] = np.where(bmap[:,i],direct,bmap[:,i])
+#      provisional means        
         r += 1.0
         avimg = avimg + (img-avimg)/r
         for j in range(bands): 
