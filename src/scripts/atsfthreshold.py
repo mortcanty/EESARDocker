@@ -2,10 +2,10 @@
 #******************************************************************************
 #  Name:     atsfthreshold.py
 #  Purpose:  
-#    calculate threshold ATSF with frequency image and replace with GAMMA MAP
+#    calculate threshold ATSF with frequency image and replace with refined Lee
 #
 #  Usage:        
-#    python atsfthreshold.py [OPTIONS] atsffile gammamapfile freqimage
+#    python atsfthreshold.py [OPTIONS] atsfFile leefile avimgLogFile
 #
 #  Copyright (c) 2018 Mort Canty
 
@@ -20,9 +20,9 @@ def main():
     Usage:
 ------------------------------------------------
 
-Threshold ATSF with frequency image and replace with GAMMA MAP   
+Threshold ATSF with frequency image and replace with refined Lee filter  
 
-python %s [OPTIONS] atsffile gammamapfile freqimage 
+python %s [OPTIONS] atsffile leeFile avimglogfile 
       
 Options:
 
@@ -67,7 +67,6 @@ Options:
     rows2 = inDataset2.RasterYSize   
     cols = min(cols,cols2) 
     rows = min(rows,rows2)
-    inDataset2 = None
     if dims:
         x0,y0,cols,rows = dims
     else:
@@ -76,22 +75,22 @@ Options:
     g1 = np.zeros((cols*rows,bands))      
     for k in range(bands):      
         g1[:,k] = np.nan_to_num(inDataset1.GetRasterBand(k+1).ReadAsArray(x0,y0,cols,rows).astype(float).ravel())       
-    inDataset = gdal.Open(fn2,GA_ReadOnly)   
     g2 = np.zeros((cols*rows,bands))   
     for k in range(bands):      
-        g2[:,k] = np.nan_to_num(inDataset.GetRasterBand(k+1).ReadAsArray(x0,y0,cols,rows).astype(float).ravel())   
+        g2[:,k] = np.nan_to_num(inDataset2.GetRasterBand(k+1).ReadAsArray(x0,y0,cols,rows).astype(float).ravel())   
     inDataset = gdal.Open(fn3,GA_ReadOnly)   
     g3 = np.zeros((cols*rows,bands))   
     for k in range(bands):      
         g3[:,k] = np.nan_to_num(inDataset.GetRasterBand(1).ReadAsArray(x0,y0,cols,rows).astype(float).ravel())   
     if thresh == None:
         thresh = np.max(g3)/4   
+    inDataset2 = None
     inDataset = None
     
     g1 = np.reshape(np.where(g3<thresh,g2,g1),(rows,cols,bands)) 
     
     driver = inDataset1.GetDriver() 
-    outDataset = driver.Create(outfn,cols,rows,3,GDT_Float32)
+    outDataset = driver.Create(outfn,cols,rows,bands,GDT_Float32)
     
     geotransform = inDataset1.GetGeoTransform()
     if geotransform is not None:

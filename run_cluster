@@ -1,0 +1,18 @@
+#!/bin/bash
+source ~/python/EESARDocker/venv3/bin/activate
+ipcontroller --ip="*" &
+sleep 2s
+cp /home/mort/.ipython/profile_default/security/ipcontroller-engine.json /media/nfs_share/ipcontroller-engine.json
+ipengine &
+ipengine &
+ipengine &
+ipengine &
+ssh pi@rpi4 .local/bin/ipengine --file=/media/nfs_share/ipcontroller-engine.json &
+ssh pi@rpi4 .local/bin/ipengine --file=/media/nfs_share/ipcontroller-engine.json &
+ssh pi@rpi4 .local/bin/ipengine --file=/media/nfs_share/ipcontroller-engine.json &
+ssh pi@rpi4 .local/bin/ipengine --file=/media/nfs_share/ipcontroller-engine.json &
+ssh pi@rpi3 .local/bin/ipengine --file=/media/nfs_share/ipcontroller-engine.json &
+ssh pi@rpi3 .local/bin/ipengine --file=/media/nfs_share/ipcontroller-engine.json &
+ssh pi@rpi3 .local/bin/ipengine --file=/media/nfs_share/ipcontroller-engine.json &
+ssh pi@rpi3 .local/bin/ipengine --file=/media/nfs_share/ipcontroller-engine.json &
+

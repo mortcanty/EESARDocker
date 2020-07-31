@@ -94,12 +94,10 @@ def mmse_filter(infile, m, dims=None):
     print ('number of looks: %f'%m)     
     print ('Determining filter weights from span image')    
     start = time.time()
-    print( 'row: ',)
-    sys.stdout.flush()     
+    print( 'row: ',end=' ')   
     for j in range(3,rows-3):
         if j%100 == 0:
-            print( '%i '%j,) 
-            sys.stdout.flush()
+            print( '%i '%j,end=' ') 
         windex = get_windex(j,cols)
         for i in range(3,cols-3):            
             wind = np.reshape(span[windex],(7,7))         

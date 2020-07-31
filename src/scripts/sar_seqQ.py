@@ -6,6 +6,7 @@
 #            Condradsen et al. (2016) IEEE Transactions on Geoscience and Remote Sensing,
 #            Vol. 54 No. 5 pp. 3007-3024
 #            Nielsen et al. (2020) IEEE Geoscience and Remote Sensing Letters 17(2), 242-246 
+#
 #            Tests based both upon Rj and Q = Prod(Rj)   
 #
 #  Usage:             
@@ -313,7 +314,7 @@ def main():
     from osgeo import gdal
     from auxil import subset
     from ipyparallel import Client 
-    from osgeo.gdalconst import GA_ReadOnly, GDT_Byte
+    from osgeo.gdalconst import GA_ReadOnly, GDT_Byte, GDT_Float32
     from tempfile import NamedTemporaryFile
     usage = '''
 Usage:
@@ -335,13 +336,21 @@ infiles:
 
   full paths to all input files: /path/to/infile_1 /path/to/infile_1 ... /path/to/infile_k
   
-outfile:
+outfile_stub:
 
-  without path (will be written to same directory as infile_1)
+  without path (outputs will be written to same directory as infile_1)
   
 enl:
 
   equivalent number of looks
+  
+files written:
+   outfile_stub_cmap
+   outfile_stub_fmap
+   outfile_stub_bmap
+   outfile_stub_smap
+   infile_last_atsflog (
+   infile_last_atsf  
 
 -------------------------------------------------'''%sys.argv[0]
 
@@ -364,7 +373,8 @@ enl:
         print( usage )
         sys.exit()
     k = len(args)-2
-    fns = args[0:k]  
+    fns = args[0:k]
+    lastfn = fns[-1]  
     n = np.float64(eval(args[-1])) 
     outfn = args[-2]
     gdal.AllRegister()   
@@ -387,9 +397,8 @@ enl:
             print( ' \nattempting parallel execution of co-registration ...' ) 
             start1 = time.time()  
             c = Client()
-            print( 'available engines %s'%str(c.ids) )
-            v = c[:]  
-            v.execute('from registersar import register') 
+            print( 'available engines %s'%str(c.ids) ) 
+            v = c[:]   
             fns = v.map_sync(call_register,args1)
             print( 'elapsed time for co-registration: '+str(time.time()-start1) ) 
         except Exception as e: 
@@ -430,7 +439,7 @@ enl:
         print( 'attempting parallel calculation ...' ) 
         c = Client()
         print( 'available engines %s'%str(c.ids) )
-        v = c[:]   
+        v = c[:] 
         print( 'ell = ', end=' ' )     
         for i in range(k-1):  
             print( i+1, end=' ' )               
@@ -449,12 +458,12 @@ enl:
         print( '%s \nfailed, so running sequential calculation ...'%e )  
         print( 'ell= ', end=' ')  
         for i in range(k-1):        
-            print( i+1, flush=True)   
+            print( i+1,end=' ')   
             args1 = [(fns[i:j+2],n,cols,rows,bands) for j in range(i,k-1)]                         
             results = list(map(PV,args1))  # list of tuples (p-value, lnRj)
             pvs = [result[0] for result in results] 
             if medianfilter:
-                pvs = map(call_median_filter,pvs) 
+                pvs = list(map(call_median_filter,pvs)) 
             lnRjs = np.array([result[1] for result in results]) 
             lnQ = np.sum(lnRjs,axis=0)
             pvQ = getpvQ(lnQ,bands,k-i,n)                   
@@ -466,11 +475,13 @@ enl:
     cmap,smap,fmap,bmap = change_maps(pvarray,significance)   
 #  post process bmap for Loewner direction   
     avimg = getimg(fns[0])
+    avimglog = cmap*0+k
     r = 1.0 
     for i in range(k-1):
         img = getimg(fns[i+1])
         direct = loewner(img-avimg)
         bmap[:,i] = np.where(bmap[:,i],direct,bmap[:,i])
+        avimglog = np.where(bmap[:,i],k-i,avimglog)
 #      provisional means        
         r += 1.0
         avimg = avimg + (img-avimg)/r
@@ -482,6 +493,8 @@ enl:
     fmap = np.reshape(fmap,(rows,cols))
     smap = np.reshape(smap,(rows,cols))
     bmap = np.reshape(bmap,(rows,cols,k-1))
+    atsf = np.reshape(avimg,(rows,cols,bands))
+    avimglog = np.reshape(avimglog,(rows,cols))
     driver = inDataset1.GetDriver() 
     basename = os.path.basename(outfn)
     name, _ = os.path.splitext(basename)
@@ -527,7 +540,31 @@ enl:
     outBand = outDataset.GetRasterBand(1)
     outBand.WriteArray(smap,0,0) 
     outBand.FlushCache() 
-    print( 'first change map written to: %s'%outfn4 )         
+    print( 'first change map written to: %s'%outfn4 )   
+    
+    basename = os.path.basename(lastfn)
+    name, _ = os.path.splitext(basename)
+    outfn5=lastfn.replace(name,name+'_atsflog')
+    outDataset = driver.Create(outfn5,cols,rows,1,GDT_Byte)
+    if geotransform is not None:
+        outDataset.SetGeoTransform(geotransform)      
+    if projection is not None:
+        outDataset.SetProjection(projection)     
+    outBand = outDataset.GetRasterBand(1)
+    outBand.WriteArray(avimglog,0,0) 
+    outBand.FlushCache() 
+    print( 'atsf log written to: %s'%outfn5 )   
+    outfn6=lastfn.replace(name,name+'_atsf')
+    outDataset = driver.Create(outfn6,cols,rows,bands,GDT_Float32)
+    if geotransform is not None:
+        outDataset.SetGeoTransform(geotransform)      
+    if projection is not None:
+        outDataset.SetProjection(projection) 
+    for i in range(bands):    
+        outBand = outDataset.GetRasterBand(i+1)
+        outBand.WriteArray(atsf[:,:,i],0,0) 
+        outBand.FlushCache() 
+    print( 'atsf written to: %s'%outfn6 )         
     print( 'total elapsed time: '+str(time.time()-start) )   
     outDataset = None    
     inDataset1 = None        

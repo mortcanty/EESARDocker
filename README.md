@@ -1,7 +1,7 @@
 EESARDocker 
 ===========
-Source files for the Docker image mort/eesardocker
-Docker image with Jupyter widget interface for 
+Source files for the Docker image mort/eesardocker,
+a Jupyter widget interface for 
 Sequential SAR change detection on Google Earth Engine
 
 Pull and/or run the container with

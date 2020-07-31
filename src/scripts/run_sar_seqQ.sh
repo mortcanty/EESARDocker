@@ -1,18 +1,17 @@
 #!/bin/bash
 #
 # Usage: 
-# run_sar_seqQ.sh imdir enl significance 
+# run_sar_seqQ.sh imdir enl alpha outfile dims 
 #
 
-alpha="${@: -1}"
-enl=("${@: -2}")
-imdir=("${@: -3}")
+fns=$(ls -l $1 | grep -v _ | awk '{print $9}')
 
-# echo $1
+paths=()
+b=' '
 
-fns=$(ls -l $imdir | grep $1 | grep _ | awk '{print $9}')
-     
-echo ${fns//$1/$imdir$1}    
-     
-python scripts/sar_seqQ.py -s $alpha  -m \
-                     ${fns//$1/$imdir$1} dualpol.tif $enl 
+for fn in $fns
+do
+   paths+=$1$fn$b
+done
+    
+python scripts/sar_seqQ.py -s $3 -d $5 -m  $paths $4 $2
