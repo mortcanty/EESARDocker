@@ -4,6 +4,7 @@
 #  Purpose: 
 #    Estimation of ENL for polSAR covariance images
 #    using ML method with full covariance matrix (quad, dual or single)
+#    If image diagonal-only, just use first band (C11)
 #    Anfinsen et al. (2009) IEEE TGARS 47(11), 3795-3809
 #    
 #  Usage:
@@ -98,7 +99,7 @@ def enl(infile,dims=None,outfile='enl.tif',fileout=False,xrange=50,sfn=None):
             det = k*xsi - abs(a)**2   
             d = 1   
         elif bands <= 3:
-            print( 'Diagonal-only polarimetry' )         
+            print( 'Diagonal-only polarimetry, using first band only' )         
     #      C11 (k)
             band = inDataset.GetRasterBand(1)
             k = band.ReadAsArray(x0,y0,cols,rows).ravel() 

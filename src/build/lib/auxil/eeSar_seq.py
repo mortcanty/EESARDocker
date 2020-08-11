@@ -7,16 +7,19 @@ ipywidget interface to the GEE for sequential SAR change detection
 
 '''
 import ee, time, warnings, math
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import ipywidgets as widgets
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,
                         basemaps,basemap_to_tiles,
                         LayersControl,
                         MeasureControl,
-                        FullScreenControl,
-                        SplitMapControl)
+                        FullScreenControl)
 from auxil.eeWishart import omnibus
 from auxil.eeRL import refinedLee
+from auxil.ee_enlml import enl
 from geopy.geocoders import photon
 
 ee.Initialize()
@@ -24,8 +27,6 @@ ee.Initialize()
 warnings.filterwarnings("ignore")
 
 poly = ee.Geometry.MultiPolygon([])
-
-center = list(reversed(poly.centroid().coordinates().getInfo()))
 
 def update_figure(fig,line,profile):    
     fig.title = 'Change Profile'
@@ -80,12 +81,12 @@ def handle_draw(self, action, geo_json):
         w_preview.disabled = True
         w_export_ass.disabled = True
         w_collect.disabled = False
+        w_ENL.disabled = False
     elif action == 'deleted':
         poly1 = ee.Geometry.MultiPolygon(coords)
         poly = poly.difference(poly1)
         if len(poly.coordinates().getInfo()) == 0:
-            w_collect.disabled = True
-            
+            w_collect.disabled = True            
     
 dc = DrawControl(polyline={},circlemarker={})
 dc.rectangle = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fillOpacity": 0.05}}
@@ -244,6 +245,7 @@ w_preview = widgets.Button(description="Preview",disabled=True)
 w_plot = widgets.Button(description='PlotFromAsset',disabled=False)
 w_poly = widgets.Button(description="AssetPolyBounds")
 w_clearpoly = widgets.Button(description="ClearPoly")
+w_ENL = widgets.Button(description="Estimate ENL",disabled=True)
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
 w_export_series = widgets.Button(description='ExportSeries',disabled=True)
@@ -252,7 +254,7 @@ w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
 w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series,w_export_atsf])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
-w_run = widgets.HBox([w_collect,w_preview,w_plot,w_poly,w_clearpoly])
+w_run = widgets.HBox([w_collect,w_preview,w_plot,w_poly,w_clearpoly,w_ENL])
 w_reset = widgets.Button(description='Reset',disabled=False)
 w_output = widgets.HBox([w_reset,w_out])
 
@@ -340,13 +342,30 @@ def on_clearpoly_button_clicked(b):
     with w_out:
         w_out.clear_output()
         print('Algorithm output')    
-    w_collect.disabled = True      
+    w_collect.disabled = True
+    w_ENL.disabled = True      
     
 w_clearpoly.on_click(on_clearpoly_button_clicked)    
 
+def on_ENL_button_clicked(b):
+    with w_out:
+        try:
+            w_out.clear_output()            
+            print('ENL calculation for %s, please wait ...'%timestamplist1[0])  
+            enlhist = np.array(enl(collectionfirst.clip(poly),w_exportscale.value).getInfo())
+            print('mode: %s'%str(np.argmax(enlhist)/10.0))
+            x = np.linspace(0,50,500)
+            df = pd.DataFrame(data={'ENL':x,'enlhist':enlhist})
+            df.plot.line(x='ENL',title='ENL Histogram')
+            plt.show()           
+        except Exception as e:
+            print('Error: %s'%e)     
+    
+w_ENL.on_click(on_ENL_button_clicked)    
+
 def on_collect_button_clicked(b):
     global result,collection,count,imList,poly,timestamplist1,timestamps2, \
-           s2_image,rons,mean_incidence,collectionmean,archive_crs,coords,wc 
+           s2_image,rons,mean_incidence,collectionmean,collectionfirst,archive_crs,coords,wc 
     with w_out:
         try:
             if (w_collection.value == 'COPERNICUS/S1_GRD') or (w_collection.value == ''): 
@@ -437,6 +456,7 @@ def on_collect_button_clicked(b):
 #          run the algorithm        
             result = omnibus(imList,w_significance.value,w_enl.value,w_median.value)         
             w_preview.disabled = False
+            w_ENL.disabled = False
             w_export_atsf.disabled = True
             s2_image = None
 #          display collection or S2 
@@ -534,8 +554,6 @@ w_preview.on_click(on_preview_button_clicked)
 
 def on_plot_button_clicked(b):          
 #  plot change fractions        
-    import matplotlib.pyplot as plt  
-    import numpy as np
     global bmap1 
     def plot_iter(current,prev):
         current = ee.Image.constant(current)
@@ -810,9 +828,6 @@ def run():
     osm = basemap_to_tiles(basemaps.OpenStreetMap.Mapnik)
     ews = basemap_to_tiles(basemaps.Esri.WorldStreetMap)
     ewi = basemap_to_tiles(basemaps.Esri.WorldImagery)
-#    mb = TileLayer(url="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWNhbnR5IiwiYSI6ImNpcjRsMmJxazAwM3hoeW05aDA1cmNkNzMifQ.d2UbIugbQFk2lnU8uHwCsQ",
-#                   attribution = "<a href='https://www.mapbox.com/about/maps/'>Mapbox</a> © <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap</a> <strong><a href='https://www.mapbox.com/map-feedback/' target='_blank'>Improve this map</a></strong>" )
-#    sm_control = SplitMapControl(left_layer=osm,right_layer=ewi)
     lc = LayersControl(position='topright')
     fs = FullScreenControl(position='topleft')
     mc = MeasureControl(position='topright',primary_length_unit = 'kilometers')

@@ -9,6 +9,7 @@ auxil/eeRL.py
 auxil/eeSar_seq.py
 auxil/eeSar_seq_old.py
 auxil/eeWishart.py
+auxil/ee_enlml.py
 auxil/enlml.py
 auxil/lookup.py
 auxil/registerms.py
