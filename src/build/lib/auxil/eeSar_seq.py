@@ -9,7 +9,8 @@ ipywidget interface to the GEE for sequential SAR change detection
 import ee, time, warnings, math
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+from scipy.interpolate import interp1d
+from scipy.signal import savgol_filter
 import ipywidgets as widgets
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,
@@ -245,7 +246,7 @@ w_preview = widgets.Button(description="Preview",disabled=True)
 w_plot = widgets.Button(description='PlotFromAsset',disabled=False)
 w_poly = widgets.Button(description="AssetPolyBounds")
 w_clearpoly = widgets.Button(description="ClearPoly")
-w_ENL = widgets.Button(description="Estimate ENL",disabled=True)
+w_ENL = widgets.Button(description="EstimateENL",disabled=True)
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
 w_export_series = widgets.Button(description='ExportSeries',disabled=True)
@@ -352,11 +353,19 @@ def on_ENL_button_clicked(b):
         try:
             w_out.clear_output()            
             print('ENL calculation for %s, please wait ...'%timestamplist1[0])  
-            enlhist = np.array(enl(collectionfirst.clip(poly),w_exportscale.value).getInfo())
-            print('mode: %s'%str(np.argmax(enlhist)/10.0))
+            y = np.array(enl(collectionfirst.clip(poly),w_exportscale.value).getInfo())            
+            
             x = np.linspace(0,50,500)
-            df = pd.DataFrame(data={'ENL':x,'enlhist':enlhist})
-            df.plot.line(x='ENL',title='ENL Histogram')
+            itp = interp1d(x,y, kind='linear')
+            window_size, poly_order = 21, 3
+            y_sg = savgol_filter(itp(x), window_size, poly_order) 
+            idx = np.where(y_sg<0)  
+            y_sg[idx] = 0         
+            print('mode: %s'%str(np.argmax(y_sg)/10.0))        
+            ax = plt.subplot(111)
+            ax.plot(x,y,label = 'ENL')
+            ax.plot(x,y_sg,label = 'ENL smoothed')
+            ax.legend()    
             plt.show()           
         except Exception as e:
             print('Error: %s'%e)     
