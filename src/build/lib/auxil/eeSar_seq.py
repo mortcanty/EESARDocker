@@ -267,7 +267,6 @@ def on_widget_change(b):
     w_export_drv.disabled = True
     w_export_series.disabled = True
     w_export_atsf.disabled = True
-    w_preview.disabled = True
     
 def on_changemap_widget_change(b):   
     if b['new']=='Bitemporal':
@@ -285,7 +284,7 @@ w_collection.observe(on_widget_change,names='value')
 w_enl.observe(on_widget_change,names='value')
 w_enddate.observe(on_widget_change,names='value')
 w_median.observe(on_widget_change,names='value')
-w_significance.observe(on_widget_change,names='value')
+#w_significance.observe(on_widget_change,names='value')
 w_changemap.observe(on_changemap_widget_change,names='value')
 
 def getS1collection(coords):
@@ -365,7 +364,8 @@ def on_ENL_button_clicked(b):
             ax = plt.subplot(111)
             ax.plot(x,y,label = 'ENL')
             ax.plot(x,y_sg,label = 'ENL smoothed')
-            ax.legend()    
+            ax.legend()   
+            ax.grid() 
             plt.show()           
         except Exception as e:
             print('Error: %s'%e)     

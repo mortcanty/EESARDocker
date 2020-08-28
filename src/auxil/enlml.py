@@ -99,7 +99,7 @@ def enl(infile,dims=None,outfile='enl.tif',fileout=False,xrange=50,sfn=None):
             det = k*xsi - abs(a)**2   
             d = 1   
         elif bands <= 3:
-            print( 'Diagonal-only polarimetry, using first band only' )         
+            print( 'Diagonal-only polarimetry, using first band' )         
     #      C11 (k)
             band = inDataset.GetRasterBand(1)
             k = band.ReadAsArray(x0,y0,cols,rows).ravel() 
@@ -124,7 +124,7 @@ def enl(infile,dims=None,outfile='enl.tif',fileout=False,xrange=50,sfn=None):
                         rho1 = np.sum(rho[windex])/49
                         xsi1 = np.sum(xsi[windex])/49
                         b1 = np.sum(b[windex])/49
-                        zeta1 = np.sum(zeta[windex])/49
+                        zeta1 = np.sum(zeta[windex])/49                       
                         detavC = k1*xsi1*zeta1 + 2*np.real(a1*b1*np.conj(rho1)) - xsi1*(np.abs(rho1)**2) - k1*(np.abs(b1)**2) - zeta1*(np.abs(a1)**2)
                     elif bands == 4:
                         k1 = np.sum(k[windex])/49
