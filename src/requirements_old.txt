@@ -4,7 +4,7 @@ bleach==3.1.0
 cachetools==3.1.1
 certifi==2019.9.11
 chardet==3.0.4
-cryptography==1.7.1
+cryptography==3.2
 cycler==0.10.0
 decorator==4.4.0
 defusedxml==0.6.0
