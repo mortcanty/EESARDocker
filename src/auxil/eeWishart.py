@@ -135,7 +135,7 @@ def ells_iter(current,prev):
                                      .subtract(p2.multiply(k.subtract(one)).multiply(one.subtract(one.divide(rho)).pow(2).divide(4))) ))
     Z = Z.multiply(rho)  
     PvQ = ee.Image.constant(1.0).subtract(chi2cdf(Z,f).multiply(ee.Number(1).subtract(w2))).subtract(chi2cdf(Z,f.add(4)).multiply(w2))
-    PvQ = ee.Algorithms.If(median, PvQ.focal_median(),PvQ) 
+    PvQ = ee.Algorithms.If(median, PvQ.focal_median(2.5),PvQ) 
 #  put at end of current sequence     
     pvs = pvs.add(PvQ)          
     return ee.Dictionary({'k':k,'median':median,'enl':enl,'imList':imList,'pv_arr':pv_arr.add(pvs)})

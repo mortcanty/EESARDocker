@@ -349,7 +349,7 @@ files written:
    outfile_stub_fmap
    outfile_stub_bmap
    outfile_stub_smap
-   infile_last_atsflog (
+   infile_last_atsflog
    infile_last_atsf  
 
 -------------------------------------------------'''%sys.argv[0]

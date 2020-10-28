@@ -63,7 +63,7 @@ def clipList(current,prev):
     ''' clip a list of images and multiply by ENL'''
     imlist = ee.List(ee.Dictionary(prev).get('imlist'))
     poly = ee.Dictionary(prev).get('poly') 
-    enl = ee.Number(ee.Dictionary(prev).get('enl'))
+    enl = ee.Number(ee.Dictionary(prev).get('enl')) 
     ctr = ee.Number(ee.Dictionary(prev).get('ctr'))   
     stride = ee.Number(ee.Dictionary(prev).get('stride'))
     imlist =  ee.Algorithms.If(ctr.mod(stride).eq(0),
@@ -88,11 +88,6 @@ def handle_draw(self, action, geo_json):
         poly = poly.difference(poly1)
         if len(poly.coordinates().getInfo()) == 0:
             w_collect.disabled = True            
-    
-dc = DrawControl(polyline={},circlemarker={})
-dc.rectangle = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fillOpacity": 0.05}}
-dc.polygon = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fillOpacity": 0.05}}
-dc.on_draw(handle_draw)
 
 def GetTileLayerUrl(ee_image_object):
     map_id = ee.Image(ee_image_object).getMapId()
@@ -113,7 +108,7 @@ w_enl = widgets.BoundedFloatText(
     disabled=False
 )
 w_location = widgets.Text(
-    value='Jülich, Germany',
+    value='Jülich',
     placeholder=' ',
     description='',
     disabled=False
@@ -190,7 +185,7 @@ w_stride = widgets.BoundedIntText(
 )
 w_median = widgets.Checkbox(
     value=True,
-    description='3x3 Median filter',
+    description='5x5 Median filter',
     disabled=False
 )
 w_S2 = widgets.Checkbox(
@@ -208,9 +203,9 @@ w_Q = widgets.Checkbox(
 w_significance = widgets.BoundedFloatText(
     layout = widgets.Layout(width='200px'),
     value='0.01',
-    min=0,
+    min=0.001,
     max=0.05,
-    step=0.0001,
+    step=0.001,
     description='Significance:',
     disabled=False
 )
@@ -238,7 +233,7 @@ w_out = widgets.Output(
 )
 
 w_goto = widgets.Button(description='GoTo',disabled=False)
-w_export_atsf = widgets.Button(description='Export ATSF',disabled=True)
+w_export_atsf = widgets.Button(description='ExportATSFtoDrive',disabled=True)
 w_coll = widgets.HBox([w_collection,w_enl,w_goto,w_location])
 w_opac = widgets.VBox([w_opacity,w_maskchange,w_maskwater],layout = widgets.Layout(width='50%'))
 w_collect = widgets.Button(description="Collect",disabled=True)
@@ -249,11 +244,10 @@ w_clearpoly = widgets.Button(description="ClearPoly")
 w_ENL = widgets.Button(description="EstimateENL",disabled=True)
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
-w_export_series = widgets.Button(description='ExportSeries',disabled=True)
 w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate,w_stride])
 w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
-w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_series,w_export_atsf])
+w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_atsf])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
 w_run = widgets.HBox([w_collect,w_preview,w_plot,w_poly,w_clearpoly,w_ENL])
 w_reset = widgets.Button(description='Reset',disabled=False)
@@ -265,7 +259,6 @@ def on_widget_change(b):
     w_preview.disabled = True
     w_export_ass.disabled = True
     w_export_drv.disabled = True
-    w_export_series.disabled = True
     w_export_atsf.disabled = True
     
 def on_changemap_widget_change(b):   
@@ -284,7 +277,7 @@ w_collection.observe(on_widget_change,names='value')
 w_enl.observe(on_widget_change,names='value')
 w_enddate.observe(on_widget_change,names='value')
 w_median.observe(on_widget_change,names='value')
-#w_significance.observe(on_widget_change,names='value')
+w_significance.observe(on_widget_change,names='value')
 w_changemap.observe(on_changemap_widget_change,names='value')
 
 def getS1collection(coords):
@@ -352,8 +345,7 @@ def on_ENL_button_clicked(b):
         try:
             w_out.clear_output()            
             print('ENL calculation for %s, please wait ...'%timestamplist1[0])  
-            y = np.array(enl(collectionfirst.clip(poly),w_exportscale.value).getInfo())            
-            
+            y = np.array(enl(collectionfirst.clip(poly),w_exportscale.value).getInfo())                     
             x = np.linspace(0,50,500)
             itp = interp1d(x,y, kind='linear')
             window_size, poly_order = 21, 3
@@ -487,6 +479,7 @@ def on_collect_button_clicked(b):
                     timestamps2 = '20'+timestamp[4:]+timestamp[0:4]
                     print('Sentinel-2 from %s'%timestamps2) 
             m.add_layer(TileLayer(url=GetTileLayerUrl(vorschau)))
+          
         except Exception as e:
             print('Error: %s'%e)       
 
@@ -504,17 +497,18 @@ def on_goto_button_clicked(b):
 w_goto.on_click(on_goto_button_clicked)
 
 def on_preview_button_clicked(b):
-    global cmap,smap,fmap,bmap,avimg,pvQ,avimglog,count,watermask
+    global cmap,smap,fmap,bmap,avimgs,avimg,pvQ,avimglog,count,watermask
     watermask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)  
     with w_out:  
         try:       
             jet = 'black,blue,cyan,yellow,red'
-            rgy = 'black,red,green,yellow'
+            rcy = 'black,red,cyan,yellow'
             smap = ee.Image(result.get('smap')).byte()
             cmap = ee.Image(result.get('cmap')).byte()
             fmap = ee.Image(result.get('fmap')).byte() 
             bmap = ee.Image(result.get('bmap')).byte()   
 #          the atsf                    
+            avimgs = ee.List(result.get('avimgs'))
             avimg = ee.Image(ee.List(result.get('avimgs')).get(-1)).clip(poly)  
             avimglog = ee.Image(result.get('avimglog')).byte().clip(poly)     
 #          for control           
@@ -539,9 +533,9 @@ def on_preview_button_clicked(b):
                 sel = min(sel,count-1)
                 sel = max(sel,1)
                 print('Bitemporal: %s-->%s'%(timestamplist1[sel-1],timestamplist1[sel]))
-                print('red = positive definite, green = negative definite, yellow = indefinite')     
+                print('red = positive definite, cyan = negative definite, yellow = indefinite')     
                 mp = bmap.select(sel-1).clip(poly)
-                palette = rgy
+                palette = rcy
                 mx = 3     
             if len(m.layers)>3:
                 m.remove_layer(m.layers[3])
@@ -554,7 +548,6 @@ def on_preview_button_clicked(b):
             m.add_layer(TileLayer(url=GetTileLayerUrl(mp.visualize(min=0, max=mx, palette=palette,opacity = w_opacity.value))))
             w_export_ass.disabled = False
             w_export_drv.disabled = False
-            w_export_series.disabled = False
             w_export_atsf.disabled = False
         except Exception as e:
             print('Error: %s'%e)
@@ -682,18 +675,8 @@ def on_export_drv_button_clicked(b):
         gdexport.start()
         with w_out:
             w_out.clear_output()
-            print('Exporting change maps to Drive/EarthEngineImages/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))) 
-            
-#      for Allan             
-        fileNamePrefix=w_exportdrivename.value.replace('/','-')+'_pvQ'            
-        gdexport = ee.batch.Export.image.toDrive(pvQ.clip(poly),
-                                    description='driveExportTask', 
-                                    folder = 'gee',
-                                    fileNamePrefix=fileNamePrefix,scale=w_exportscale.value,maxPixels=1e9)   
-        gdexport.start()
-        with w_out:
-            print('Exporting omnibus p-value to Drive/gee/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id)))     
-           
+            print('Exporting change maps to Drive/gee/%s\n task id: %s'%(fileNamePrefix,str(gdexport.id))) 
+
 #      export metadata to drive
         if w_collection.value == 'COPERNICUS/S1_GRD': 
             times = [timestamp[1:9] for timestamp in timestamplist1]
@@ -736,45 +719,9 @@ def on_export_drv_button_clicked(b):
             print('Error: %s'%e) 
 
 w_export_drv.on_click(on_export_drv_button_clicked) 
-
-def on_export_series_button_clicked(b):
-    try:
-        imlist = ee.List(imList)
-        with w_out:
-            w_out.clear_output()
-            print('Exporting time series of %i images to Drive'%count)
-        for i in range(count):
-            if i<10:
-                pad = '0'
-            else:
-                pad = ''
-            image = ee.Image(imlist.get(i))
-            gdexport1 = ee.batch.Export.image.toDrive(image,
-                                                      description='driveExportTask_series_'+pad+str(i), 
-                                                      folder = 'gee',
-                                                      fileNamePrefix = timestamplist1[i],
-                                                      crs = archive_crs,
-                                                      scale = w_exportscale.value,
-                                                      maxPixels = 1e10)
-            gdexport1.start()  
-        if s2_image is not None:
-            with w_out:
-                print('Exporting s2 image to Drive')
-            gdexport2 = ee.batch.Export.image.toDrive(s2_image,
-                                                      description='driveExportTask_s2', 
-                                                      folder = 'gee',
-                                                      fileNamePrefix = 'T'+timestamps2+'_s2',
-                                                      crs = archive_crs,
-                                                      scale = w_exportscale.value,
-                                                      maxPixels = 1e10)
-            gdexport2.start()                                           
-    except Exception as e:
-        with w_out:
-            print('Error: %s'%e)        
-            
-w_export_series.on_click(on_export_series_button_clicked)             
         
 def on_export_atsf_button_clicked(b):
+#  export last ATSF image to drive together with unfiltered, hybrid filtered version and log image   
     try:          
         img_last = ee.Image(ee.List(imList).get(-1))
         img_rl = ee.Image(refinedLee(img_last))   
@@ -822,7 +769,23 @@ def on_export_atsf_button_clicked(b):
                                                       crs = archive_crs,
                                                       scale = w_exportscale.value,
                                                       maxPixels = 1e10)
-            gdexport4.start()              
+            gdexport4.start()   
+#          export every fifth ATSF filtered image to drive            
+            print('Exporting ATSF series to Drive ...')
+            for i in range(0,count,5):
+                if i<10:
+                    pad = '0'
+                else:
+                    pad = ''
+                image = ee.Image(avimgs.get(i)).clip(poly)
+                gdexport5 = ee.batch.Export.image.toDrive(image,
+                                                          description='driveExportTask_series_'+pad+str(i), 
+                                                          folder = 'gee',
+                                                          fileNamePrefix = timestamplist1[i],
+                                                          crs = archive_crs,
+                                                          scale = w_exportscale.value,
+                                                          maxPixels = 1e10)
+                gdexport5.start()                       
                                 
     except Exception as e:
         with w_out:
@@ -831,12 +794,18 @@ def on_export_atsf_button_clicked(b):
 w_export_atsf.on_click(on_export_atsf_button_clicked)             
                           
 def run():
-    global m,dc,center
+    global m,center
 #    center = list(reversed(poly.centroid().coordinates().getInfo()))
     center = [51.0,6.4]
     osm = basemap_to_tiles(basemaps.OpenStreetMap.Mapnik)
     ews = basemap_to_tiles(basemaps.Esri.WorldStreetMap)
     ewi = basemap_to_tiles(basemaps.Esri.WorldImagery)
+    
+    dc = DrawControl(polyline={},circlemarker={})
+    dc.rectangle = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fillOpacity": 0.05}}
+    dc.polygon = {"shapeOptions": {"fillColor": "#0000ff","color": "#0000ff","fillOpacity": 0.05}}
+    dc.on_draw(handle_draw)
+    
     lc = LayersControl(position='topright')
     fs = FullScreenControl(position='topleft')
     mc = MeasureControl(position='topright',primary_length_unit = 'kilometers')
