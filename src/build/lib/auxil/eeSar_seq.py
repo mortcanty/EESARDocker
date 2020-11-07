@@ -280,24 +280,19 @@ w_median.observe(on_widget_change,names='value')
 w_significance.observe(on_widget_change,names='value')
 w_changemap.observe(on_changemap_widget_change,names='value')
 
-def getS1collection(coords):
+
+def getS1collection():
     return ee.ImageCollection('COPERNICUS/S1_GRD') \
-                      .filterBounds(ee.Geometry.Point(coords.get(0))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(1))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(2))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(3))) \
+                      .filterBounds(poly) \
                       .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value)) \
                       .filter(ee.Filter.eq('transmitterReceiverPolarisation', ['VV','VH'])) \
                       .filter(ee.Filter.eq('resolution_meters', 10)) \
                       .filter(ee.Filter.eq('instrumentMode', 'IW')) \
-                      .filter(ee.Filter.eq('orbitProperties_pass', w_orbitpass.value))   
-                                         
-def getS2collection(coords):
+                      .filter(ee.Filter.eq('orbitProperties_pass', w_orbitpass.value))                         
+
+def getS2collection():
     return ee.ImageCollection('COPERNICUS/S2') \
-                      .filterBounds(ee.Geometry.Point(coords.get(0))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(1))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(2))) \
-                      .filterBounds(ee.Geometry.Point(coords.get(3))) \
+                      .filterBounds(poly) \
                       .filterDate(ee.Date(w_startdate.value),ee.Date(w_enddate.value)) \
                       .sort('CLOUDY_PIXEL_PERCENTAGE',True)
                       
@@ -373,7 +368,7 @@ def on_collect_button_clicked(b):
                 w_out.clear_output()
                 print('running on GEE archive COPERNICUS/S1_GRD (please wait for raster overlay) ...')
                 coords = ee.List(poly.bounds().coordinates().get(0))
-                collection = getS1collection(coords) 
+                collection = getS1collection()
                 if w_relativeorbitnumber.value > 0:
                     collection = collection.filter(ee.Filter.eq('relativeOrbitNumber_start', int(w_relativeorbitnumber.value)))   
                 if w_platform.value != 'Both':
@@ -415,11 +410,11 @@ def on_collect_button_clicked(b):
                 first = ee.Dictionary({'imlist':ee.List([]),'poly':poly,'enl':ee.Number(w_enl.value),'ctr':ee.Number(0),'stride':ee.Number(int(w_stride.value))}) 
                 imList = ee.List(ee.Dictionary(pList.iterate(clipList,first)).get('imlist'))              
 #              get a vorschau as collection mean                                           
-                collectionmean = collection.mean().select(0,1).clip(poly).rename('b0','b1')
-                percentiles = collectionmean.reduceRegion(ee.Reducer.percentile([2,98]),scale=w_exportscale.value,maxPixels=10e9)
+                collectionmosaic = collection.mosaic().select(0,1).rename('b0','b1')
+                percentiles = collectionmosaic.reduceRegion(ee.Reducer.percentile([2,98]),geometry=poly,scale=w_exportscale.value,maxPixels=10e9)
                 mn = ee.Number(percentiles.get('b0_p2'))
                 mx = ee.Number(percentiles.get('b0_p98'))        
-                vorschau = collectionmean.select(0).visualize(min=mn, max=mx, opacity=w_opacity.value) 
+                vorschau = collectionmosaic.select(0).visualize(min=mn, max=mx, opacity=w_opacity.value) 
             else:
                 w_out.clear_output()
                 collection = ee.ImageCollection(w_collection.value)
@@ -453,7 +448,8 @@ def on_collect_button_clicked(b):
                 vorschau = collectionmean.select(0).visualize(min=mn, max=mx, opacity=w_opacity.value)       
                 imList = collection.toList(100)
 #          get GEE S1 archive crs for eventual image series export               
-            archive_crs = ee.Image(getS1collection(coords).first()).select(0).projection().crs().getInfo()
+#            archive_crs = ee.Image(getS1collection(coords).first()).select(0).projection().crs().getInfo()
+            archive_crs = ee.Image(getS1collection().first()).select(0).projection().crs().getInfo()
 #          run the algorithm        
             result = omnibus(imList,w_significance.value,w_enl.value,w_median.value)         
             w_preview.disabled = False
@@ -465,7 +461,7 @@ def on_collect_button_clicked(b):
                 m.remove_layer(m.layers[3])
             if w_S2.value:
 #              display sentinel-2 if available              
-                collection2 = getS2collection(coords) 
+                collection2 = getS2collection() 
                 count1 = collection2.size().getInfo()
                 if count1>0:    
                     s2_image =  ee.Image(collection2.first()).select(['B8','B4','B3']).clip(poly)        
@@ -637,7 +633,7 @@ def on_export_ass_button_clicked(b):
                                 'Platform: '+w_platform.value,
                                 'Background image: '+bgname,
                                 'Mean incidence angles: '+str(mean_incidence),
-                                'Used 3x3 median filter: '+str(w_median.value)]) \
+                                'Used 5x5 median filter: '+str(w_median.value)]) \
                                 .cat(['Polygon:']) \
                                 .cat(poly.getInfo()['coordinates'][0]) 
         else:
@@ -693,7 +689,7 @@ def on_export_drv_button_clicked(b):
                                 'Rel orbit number(s): '+str(rons),
                                 'Platform: '+w_platform.value,
                                 'Mean incidence angles: '+str(mean_incidence),
-                                'Used 3x3 median filter: '+str(w_median.value)]) \
+                                'Used 5x5 median filter: '+str(w_median.value)]) \
                                 .cat(['Polygon:']) \
                                 .cat(poly.getInfo()['coordinates'][0]) 
         else:
@@ -705,7 +701,7 @@ def on_export_drv_button_clicked(b):
                                 'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
                                 'Significance: '+str(w_significance.value),  
                                 'Series length: '+str(count),
-                                'Used 3x3 median filter: '+str(w_median.value)]) 
+                                'Used 5x5 median filter: '+str(w_median.value)]) 
         fileNamePrefix=w_exportdrivename.value.replace('/','-')  
         gdexport = ee.batch.Export.table.toDrive(ee.FeatureCollection(metadata.map(makefeature)),
                              description='driveExportTask_meta', 
@@ -770,9 +766,10 @@ def on_export_atsf_button_clicked(b):
                                                       scale = w_exportscale.value,
                                                       maxPixels = 1e10)
             gdexport4.start()   
-#          export every fifth ATSF filtered image to drive            
+#          additionally export every kth ATSF filtered image to drive            
             print('Exporting ATSF series to Drive ...')
-            for i in range(0,count,5):
+            k = 5
+            for i in range(0,count,k):
                 if i<10:
                     pad = '0'
                 else:
@@ -785,7 +782,8 @@ def on_export_atsf_button_clicked(b):
                                                           crs = archive_crs,
                                                           scale = w_exportscale.value,
                                                           maxPixels = 1e10)
-                gdexport5.start()                       
+#              uncomment  to start export                
+#                gdexport5.start()                       
                                 
     except Exception as e:
         with w_out:
