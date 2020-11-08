@@ -238,6 +238,7 @@ w_coll = widgets.HBox([w_collection,w_enl,w_goto,w_location])
 w_opac = widgets.VBox([w_opacity,w_maskchange,w_maskwater],layout = widgets.Layout(width='50%'))
 w_collect = widgets.Button(description="Collect",disabled=True)
 w_preview = widgets.Button(description="Preview",disabled=True)
+w_review = widgets.Button(description="Review",disabled=False)
 w_plot = widgets.Button(description='PlotFromAsset',disabled=False)
 w_poly = widgets.Button(description="AssetPolyBounds")
 w_clearpoly = widgets.Button(description="ClearPoly")
@@ -249,7 +250,7 @@ w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
 w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_atsf])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
-w_run = widgets.HBox([w_collect,w_preview,w_plot,w_poly,w_clearpoly,w_ENL])
+w_run = widgets.HBox([w_collect,w_preview,w_review,w_plot,w_poly,w_clearpoly,w_ENL])
 w_reset = widgets.Button(description='Reset',disabled=False)
 w_output = widgets.HBox([w_reset,w_out])
 
@@ -361,7 +362,7 @@ w_ENL.on_click(on_ENL_button_clicked)
 
 def on_collect_button_clicked(b):
     global result,collection,count,imList,poly,timestamplist1,timestamps2, \
-           s2_image,rons,mean_incidence,collectionmean,collectionfirst,archive_crs,coords,wc 
+           s2_image,rons,mean_incidence,collectionmosaic,collectionfirst,archive_crs,coords,wc 
     with w_out:
         try:
             if (w_collection.value == 'COPERNICUS/S1_GRD') or (w_collection.value == ''): 
@@ -441,11 +442,11 @@ def on_collect_button_clicked(b):
                     timestamplist1 = ['T%i'%(i+1) for i in range(count)]
                     print('No time property available: acquisitions: %s'%str(timestamplist1))         
 #              get a vorschau from collection mean                 
-                collectionmean = collection.mean().clip(poly)
-                percentiles = collectionmean.select(0).rename('b0').reduceRegion(ee.Reducer.percentile([2,98]),scale=w_exportscale.value,maxPixels=10e9)
+                collectionmosaic = collection.mosaic().clip(poly)
+                percentiles = collectionmosaic.select(0).rename('b0').reduceRegion(ee.Reducer.percentile([2,98]),scale=w_exportscale.value,maxPixels=10e9)
                 mn = ee.Number(percentiles.get('b0_p2'))
                 mx = ee.Number(percentiles.get('b0_p98'))        
-                vorschau = collectionmean.select(0).visualize(min=mn, max=mx, opacity=w_opacity.value)       
+                vorschau = collectionmosaic.select(0).visualize(min=mn, max=mx, opacity=w_opacity.value)       
                 imList = collection.toList(100)
 #          get GEE S1 archive crs for eventual image series export               
 #            archive_crs = ee.Image(getS1collection(coords).first()).select(0).projection().crs().getInfo()
@@ -550,6 +551,65 @@ def on_preview_button_clicked(b):
     
 w_preview.on_click(on_preview_button_clicked)   
 
+def on_review_button_clicked(b):
+    watermask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)  
+    with w_out:  
+        try:       
+            asset = ee.Image(w_exportassetsname.value)
+            center = ee.Geometry.Polygon(ee.Geometry(asset.get('system:footprint')).coordinates()) \
+                                .centroid().coordinates().getInfo()
+            center.reverse()
+            m.center = center  
+            bnames = asset.bandNames().getInfo()[3:-2]
+            count = len(bnames)               
+            jet = 'black,blue,cyan,yellow,red'
+            rcy = 'black,red,cyan,yellow'
+            smap = asset.select('smap').byte()
+            cmap = asset.select('cmap').byte()
+            fmap = asset.select('fmap').byte()
+            bmap = asset.select(list(range(3,count+3)),bnames).byte()      
+            palette = jet
+            w_out.clear_output()
+            print('Series length: %i images, reviewing (please wait for raster overlay) ...'%(count+1))
+            if w_changemap.value=='First':
+                mp = smap
+                mx = count
+                print('Interval of first change:\n blue = early, red = late')
+            elif w_changemap.value=='Last':
+                mp = cmap
+                mx = count
+                print('Interval of last change:\n blue = early, red = late')
+            elif w_changemap.value=='Frequency':
+                mp = fmap
+                mx = count/2
+                print('Change frequency :\n blue = few, red = many')
+            else:
+                sel = int(w_bmap.value)-1
+                sel = min(sel,count-1)
+                sel = max(sel,0)
+                if sel>0:
+                    print('Bitemporal: %s --> %s'%(bnames[sel-1],bnames[sel]))
+                else:
+                    print('Bitemporal: image1 --> %s'%bnames[sel])
+                print('red = positive definite, cyan = negative definite, yellow = indefinite')     
+                mp = bmap.select(sel)
+                palette = rcy
+                mx = 3     
+            if len(m.layers)>3:
+                m.remove_layer(m.layers[3])
+            if w_maskwater.value==True:
+                mp = mp.updateMask(watermask)
+            if w_maskchange.value==True:    
+                mp = mp.updateMask(mp.gt(0))    
+            m.add_layer(TileLayer(url=GetTileLayerUrl(mp.visualize(min=0, max=mx, palette=palette,opacity = w_opacity.value))))
+            w_export_ass.disabled = False
+            w_export_drv.disabled = False
+            w_export_atsf.disabled = False
+        except Exception as e:
+            print('Error: %s'%e)
+    
+w_review.on_click(on_review_button_clicked)   
+
 def on_plot_button_clicked(b):          
 #  plot change fractions        
     global bmap1 
@@ -593,10 +653,10 @@ w_plot.on_click(on_plot_button_clicked)
 
 def on_export_ass_button_clicked(b):
     try:
-        background = collectionmean.select(0).add(15).divide(15)
-        bgname = 'collectionmean'
+        background = collectionmosaic.select(0).add(15).divide(15)
+        bgname = 'collectionmosaic'
         if w_collection.value == 'COPERNICUS/S1_GRD':  
-            collection1 = getS2collection(coords)
+            collection1 = getS2collection()
             count1 = collection1.size().getInfo()
             if count1>0:
         #      use sentinel-2 as video background if available                       
