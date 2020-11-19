@@ -9,8 +9,6 @@ ipywidget interface to the GEE for sequential SAR change detection
 import ee, time, warnings, math
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.interpolate import interp1d
-from scipy.signal import savgol_filter
 import ipywidgets as widgets
 from IPython.display import display
 from ipyleaflet import (Map,DrawControl,TileLayer,
@@ -20,7 +18,6 @@ from ipyleaflet import (Map,DrawControl,TileLayer,
                         FullScreenControl)
 from auxil.eeWishart import omnibus
 from auxil.eeRL import refinedLee
-from auxil.ee_enlml import enl
 from geopy.geocoders import photon
 
 ee.Initialize()
@@ -82,7 +79,6 @@ def handle_draw(self, action, geo_json):
         w_preview.disabled = True
         w_export_ass.disabled = True
         w_collect.disabled = False
-        w_ENL.disabled = False
     elif action == 'deleted':
         poly1 = ee.Geometry.MultiPolygon(coords)
         poly = poly.difference(poly1)
@@ -190,7 +186,7 @@ w_median = widgets.Checkbox(
 )
 w_S2 = widgets.Checkbox(
     layout = widgets.Layout(width='200px'),
-    value=False,
+    value=True,
     description='Show best S2',
     disabled=False
 )
@@ -240,8 +236,8 @@ w_collect = widgets.Button(description="Collect",disabled=True)
 w_preview = widgets.Button(description="Preview",disabled=True)
 w_review = widgets.Button(description="Review",disabled=False)
 w_plot = widgets.Button(description='PlotFromAsset',disabled=False)
+w_poly = widgets.Button(description="AssetPolyBounds")
 w_clearpoly = widgets.Button(description="ClearPoly")
-w_ENL = widgets.Button(description="EstimateENL",disabled=True)
 w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
 w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
 w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate,w_stride])
@@ -249,7 +245,7 @@ w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
 w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_atsf])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
-w_run = widgets.HBox([w_collect,w_preview,w_review,w_plot,w_clearpoly,w_ENL])
+w_run = widgets.HBox([w_collect,w_preview,w_review,w_plot,w_poly,w_clearpoly])
 w_reset = widgets.Button(description='Reset',disabled=False)
 w_output = widgets.HBox([w_reset,w_out])
 
@@ -282,14 +278,13 @@ w_changemap.observe(on_changemap_widget_change,names='value')
 
 
 def getS1collection():
-    s1 =  ee.ImageCollection('COPERNICUS/S1_GRD') \
+    return ee.ImageCollection('COPERNICUS/S1_GRD') \
                       .filterBounds(poly) \
                       .filterDate(ee.Date(w_startdate.value), ee.Date(w_enddate.value)) \
                       .filter(ee.Filter.eq('transmitterReceiverPolarisation', ['VV','VH'])) \
                       .filter(ee.Filter.eq('resolution_meters', 10)) \
                       .filter(ee.Filter.eq('instrumentMode', 'IW')) \
-                      .filter(ee.Filter.eq('orbitProperties_pass', w_orbitpass.value))    
-    return s1.filter(ee.Filter.contains(rightValue=poly,leftField='.geo'))
+                      .filter(ee.Filter.eq('orbitProperties_pass', w_orbitpass.value))                         
 
 def getS2collection():
     return ee.ImageCollection('COPERNICUS/S2') \
@@ -311,6 +306,19 @@ w_reset.on_click(on_reset_button_clicked)
 #         w_out.clear_output()
 #         print(str(assetpoly.bounds().getInfo()))
         
+def on_poly_button_clicked(b):
+    global poly
+    asset = w_exportassetsname.value
+    poly = ee.Image(asset).select(0).geometry()
+    with w_out:
+        w_out.clear_output()
+        print(str(poly.bounds().getInfo()))    
+    center = poly.centroid().coordinates().reverse().getInfo()    
+    m.center = center
+    m.zoom = 11  
+    w_collect.disabled = False      
+    
+w_poly.on_click(on_poly_button_clicked)    
 
 def on_clearpoly_button_clicked(b):
     global poly
@@ -318,34 +326,9 @@ def on_clearpoly_button_clicked(b):
     with w_out:
         w_out.clear_output()
         print('Algorithm output')    
-    w_collect.disabled = True
-    w_ENL.disabled = True      
+    w_collect.disabled = True    
     
 w_clearpoly.on_click(on_clearpoly_button_clicked)    
-
-def on_ENL_button_clicked(b):
-    with w_out:
-        try:
-            w_out.clear_output()            
-            print('ENL calculation for %s, please wait ...'%timestamplist1[0])  
-            y = np.array(enl(collectionfirst.clip(poly),w_exportscale.value).getInfo())                     
-            x = np.linspace(0,50,500)
-            itp = interp1d(x,y, kind='linear')
-            window_size, poly_order = 21, 3
-            y_sg = savgol_filter(itp(x), window_size, poly_order) 
-            idx = np.where(y_sg<0)  
-            y_sg[idx] = 0         
-            print('mode: %s'%str(np.argmax(y_sg)/10.0))        
-            ax = plt.subplot(111)
-            ax.plot(x,y,label = 'ENL')
-            ax.plot(x,y_sg,label = 'ENL smoothed')
-            ax.legend()   
-            ax.grid() 
-            plt.show()           
-        except Exception as e:
-            print('Error: %s'%e)     
-    
-w_ENL.on_click(on_ENL_button_clicked)    
 
 def on_collect_button_clicked(b):
     global result,collection,count,imList,poly,timestamplist1,timestamps2, \
@@ -441,7 +424,6 @@ def on_collect_button_clicked(b):
 #          run the algorithm        
             result = omnibus(imList,w_significance.value,w_enl.value,w_median.value)         
             w_preview.disabled = False
-            w_ENL.disabled = False
             w_export_atsf.disabled = True
             s2_image = None
 #          display collection or S2 
@@ -619,16 +601,13 @@ def on_plot_button_clicked(b):
             x = range(1,k+1)  
             fig = plt.figure(figsize=(10,5))
             plt.plot(x,list(plots[0].values()),'ro-',label='posdef')
-            plt.plot(x,list(plots[1].values()),'co-',label='negdef')
+            plt.plot(x,list(plots[1].values()),'go-',label='negdef')
             plt.plot(x,list(plots[2].values()),'yo-',label='indef')        
             ticks = range(0,k+2)
             labels = [str(i) for i in range(0,k+2)]
             labels[0] = ' '
             labels[-1] = ' '
             labels[1:-1] = bns 
-            if k>50:
-                for i in range(1,k,2):
-                    labels[i] = ''
             plt.xticks(ticks,labels,rotation=90)
             plt.legend()
             fn = w_exportassetsname.value.replace('/','-')+'.png'

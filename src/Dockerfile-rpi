@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y \
 
 # jupyter notebook with leaflet
 RUN     pip3 install --upgrade pip
+RUN     pip3 install numpy
 RUN     pip3 install jupyter
 RUN     pip3 install ipyleaflet
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
