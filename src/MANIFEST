@@ -16,3 +16,4 @@ auxil/lookup.py
 auxil/registerms.py
 auxil/registersar.py
 auxil/subset.py
+auxil/supervisedclass.py

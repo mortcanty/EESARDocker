@@ -37,9 +37,9 @@ def enl(image,scale=10):
     result = ee.Image(ee.Algorithms.If(bands.eq(4),image.expression('b(0)*b(3)-b(1)*b(1)-b(2)*b(2)'),result))
     detimg = ee.Image(ee.Algorithms.If(bands.eq(9),image.expression(expr,detmap),result))    
 #  7x7 window average of log of determinant image        
-    avlogdetimg = detimg.log().reduceNeighborhood(ee.Reducer.mean(),ee.Kernel.square(3.5),optimization='window') 
+    avlogdetimg = detimg.log().reduceNeighborhood(ee.Reducer.mean(),ee.Kernel.square(3.5)) 
 #  log of 7x7 wíndow average of the determinant image    
-    logavdetimg = detimg.reduceNeighborhood(ee.Reducer.mean(),ee.Kernel.square(3.5),optimization='window').log()  
+    logavdetimg = detimg.reduceNeighborhood(ee.Reducer.mean(),ee.Kernel.square(3.5)).log()  
 #  add the lookuptable as 500 bands    
     bands = bands.getInfo()
     if bands==9:

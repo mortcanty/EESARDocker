@@ -233,7 +233,8 @@ w_out = widgets.Output(
 )
 
 w_goto = widgets.Button(description='GoTo',disabled=False)
-w_export_atsf = widgets.Button(description='ExportATSFtoDrive',disabled=True)
+w_export_atsf = widgets.Button(description='ATSFtoDrive',disabled=True)
+w_export_s2 = widgets.Button(description='S2toDrive',disabled=True)
 w_coll = widgets.HBox([w_collection,w_enl,w_goto,w_location])
 w_opac = widgets.VBox([w_opacity,w_maskchange,w_maskwater],layout = widgets.Layout(width='50%'))
 w_collect = widgets.Button(description="Collect",disabled=True)
@@ -242,12 +243,12 @@ w_review = widgets.Button(description="Review",disabled=False)
 w_plot = widgets.Button(description='PlotFromAsset',disabled=False)
 w_clearpoly = widgets.Button(description="ClearPoly")
 w_ENL = widgets.Button(description="EstimateENL",disabled=True)
-w_export_ass = widgets.Button(description='ExportToAssets',disabled=True)
-w_export_drv = widgets.Button(description='ExportToDrive',disabled=True)
+w_export_ass = widgets.Button(description='ChangesToAssets',disabled=True)
+w_export_drv = widgets.Button(description='ChangesToDrive',disabled=True)
 w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate,w_stride])
 w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
-w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_atsf])
+w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_atsf,w_export_s2])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
 w_run = widgets.HBox([w_collect,w_preview,w_review,w_plot,w_clearpoly,w_ENL])
 w_reset = widgets.Button(description='Reset',disabled=False)
@@ -292,10 +293,11 @@ def getS1collection():
     return s1.filter(ee.Filter.contains(rightValue=poly,leftField='.geo'))
 
 def getS2collection():
-    return ee.ImageCollection('COPERNICUS/S2') \
+    s2 = ee.ImageCollection('COPERNICUS/S2') \
                       .filterBounds(poly) \
                       .filterDate(ee.Date(w_startdate.value),ee.Date(w_enddate.value)) \
                       .sort('CLOUDY_PIXEL_PERCENTAGE',True)
+    return s2.filter(ee.Filter.contains(rightValue=poly,leftField='.geo'))                      
                       
 def on_reset_button_clicked(b):
     with w_out:
@@ -319,6 +321,7 @@ def on_clearpoly_button_clicked(b):
         w_out.clear_output()
         print('Algorithm output')    
     w_collect.disabled = True
+    w_preview.disabled = True
     w_ENL.disabled = True      
     
 w_clearpoly.on_click(on_clearpoly_button_clicked)    
@@ -327,7 +330,7 @@ def on_ENL_button_clicked(b):
     with w_out:
         try:
             w_out.clear_output()            
-            print('ENL calculation for %s, please wait ...'%timestamplist1[0])  
+            print('ENL calculation for %s ...'%timestamplist1[0])        
             y = np.array(enl(collectionfirst.clip(poly),w_exportscale.value).getInfo())                     
             x = np.linspace(0,50,500)
             itp = interp1d(x,y, kind='linear')
@@ -355,7 +358,7 @@ def on_collect_button_clicked(b):
             if (w_collection.value == 'COPERNICUS/S1_GRD') or (w_collection.value == ''): 
                 w_out.clear_output()
                 print('running on GEE archive COPERNICUS/S1_GRD (please wait for raster overlay) ...')
-                coords = ee.List(poly.bounds().coordinates().get(0))
+ #               coords = ee.List(poly.bounds().coordinates().get(0))
                 collection = getS1collection()
                 if w_relativeorbitnumber.value > 0:
                     collection = collection.filter(ee.Filter.eq('relativeOrbitNumber_start', int(w_relativeorbitnumber.value)))   
@@ -411,7 +414,7 @@ def on_collect_button_clicked(b):
                 print('Images found: %i'%count )          
                 collectionfirst = ee.Image(collection.first())  
                 poly = collectionfirst.geometry()   
-                coords = ee.List(poly.bounds().coordinates().get(0))   
+#                coords = ee.List(poly.bounds().coordinates().get(0))   
                 center = poly.centroid().coordinates().getInfo()
                 center.reverse()
                 m.center = center                
@@ -452,16 +455,17 @@ def on_collect_button_clicked(b):
                 collection2 = getS2collection() 
                 count1 = collection2.size().getInfo()
                 if count1>0:    
-                    s2_image =  ee.Image(collection2.first()).select(['B8','B4','B3']).clip(poly)        
+                    s2_image =  ee.Image(collection2.first()).select(['B2','B3','B4'])      
                     percentiles = s2_image.reduceRegion(ee.Reducer.percentile([2,98]),scale=w_exportscale.value,maxPixels=10e9)         
-                    mn = percentiles.values(['B8_p2','B4_p2','B3_p2'])
-                    mx = percentiles.values(['B8_p98','B4_p98','B3_p98'])
+                    mn = percentiles.values(['B2_p2','B3_p2','B4_p2'])
+                    mx = percentiles.values(['B2_p98','B3_p98','B4_p98'])
                     vorschau = s2_image.visualize(min=mn,max=mx,opacity=w_opacity.value)           
                     timestamp = s2_image.get('system:time_start').getInfo() 
                     timestamp = time.gmtime(int(timestamp)/1000)
                     timestamp = time.strftime('%x', timestamp).replace('/','')
                     timestamps2 = '20'+timestamp[4:]+timestamp[0:4]
                     print('Sentinel-2 from %s'%timestamps2) 
+                    w_export_s2.disabled = False
             m.add_layer(TileLayer(url=GetTileLayerUrl(vorschau)))
           
         except Exception as e:
@@ -539,12 +543,13 @@ def on_preview_button_clicked(b):
 w_preview.on_click(on_preview_button_clicked)   
 
 def on_review_button_clicked(b):
+    global poly
     watermask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)  
     with w_out:  
         try:       
             asset = ee.Image(w_exportassetsname.value)
-            center = ee.Geometry.Polygon(ee.Geometry(asset.get('system:footprint')).coordinates()) \
-                                .centroid().coordinates().getInfo()
+            poly = ee.Geometry.Polygon(ee.Geometry(asset.get('system:footprint')).coordinates())
+            center = poly.centroid().coordinates().getInfo()
             center.reverse()
             m.center = center  
             bnames = asset.bandNames().getInfo()[3:-2]
@@ -592,6 +597,7 @@ def on_review_button_clicked(b):
             w_export_ass.disabled = False
             w_export_drv.disabled = False
             w_export_atsf.disabled = False
+            w_collect.disabled = False
         except Exception as e:
             print('Error: %s'%e)
     
@@ -600,12 +606,13 @@ w_review.on_click(on_review_button_clicked)
 def on_plot_button_clicked(b):          
 #  plot change fractions        
     global bmap1 
+    watermask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1) 
     def plot_iter(current,prev):
         current = ee.Image.constant(current)
         plots = ee.List(prev) 
         res = bmap1.multiply(0) \
-                  .where(bmap1.eq(current),ee.Image.constant(1)) \
-                  .reduceRegion(ee.Reducer.mean(),scale=w_exportscale.value,maxPixels=10e9)
+                  .where(bmap1.eq(current),1) \
+                  .reduceRegion(ee.Reducer.mean(),scale=w_exportscale.value,maxPixels=10e10)
         return ee.List(plots.add(res))
     with w_out:
         try:
@@ -613,11 +620,11 @@ def on_plot_button_clicked(b):
             print('Change fraction plots ...')                  
             assetImage = ee.Image(w_exportassetsname.value)
             k = assetImage.bandNames().length().subtract(4).getInfo()            
-            bmap1 = assetImage.select(ee.List.sequence(3,k+2))               
+            bmap1 = assetImage.select(ee.List.sequence(3,k+2)).updateMask(watermask)             
             plots = ee.List(ee.List([1,2,3]).iterate(plot_iter,ee.List([]))).getInfo()           
             bns = np.array(list([s[3:9] for s in list(plots[0].keys())])) 
             x = range(1,k+1)  
-            fig = plt.figure(figsize=(10,5))
+            _ = plt.figure(figsize=(10,5))
             plt.plot(x,list(plots[0].values()),'ro-',label='posdef')
             plt.plot(x,list(plots[1].values()),'co-',label='negdef')
             plt.plot(x,list(plots[2].values()),'yo-',label='indef')        
@@ -627,7 +634,7 @@ def on_plot_button_clicked(b):
             labels[-1] = ' '
             labels[1:-1] = bns 
             if k>50:
-                for i in range(1,k,2):
+                for i in range(1,k+1,2):
                     labels[i] = ''
             plt.xticks(ticks,labels,rotation=90)
             plt.legend()
@@ -658,7 +665,7 @@ def on_export_ass_button_clicked(b):
                 timestamp = time.strftime('%x', timestamp)
                 bgname = 'sentinel-2 '+ str(timestamp) 
                 background = background.divide(5000)
-        cmaps = ee.Image.cat(cmap,smap,fmap,bmap,background).rename(['cmap','smap','fmap']+timestamplist1[1:]+['background'])                
+        cmaps = ee.Image.cat(cmap,smap,fmap,bmap,background).rename(['cmap','smap','fmap']+timestamplist1[1:]+['background'])  
         assexport = ee.batch.Export.image.toAsset(cmaps.clip(poly),
                                     description='assetExportTask', 
                                     assetId=w_exportassetsname.value,scale=w_exportscale.value,maxPixels=1e9)      
@@ -839,7 +846,27 @@ def on_export_atsf_button_clicked(b):
         with w_out:
             print('Error: %s'%e)        
 
-w_export_atsf.on_click(on_export_atsf_button_clicked)             
+w_export_atsf.on_click(on_export_atsf_button_clicked)       
+
+def on_export_s2_button_clicked(b):
+#  export full s2 image   
+    try:           
+        with w_out:       
+            w_out.clear_output()     
+            print('Exporting s2 image (optical bands B2, B3, B4 only) to Drive')            
+            gdexport = ee.batch.Export.image.toDrive(s2_image,
+                                                      description='driveExportTask_s2', 
+                                                      folder = 'gee',
+                                                      fileNamePrefix = 's2_%s_optical'%timestamps2,
+                                                      crs = archive_crs,
+                                                      scale = w_exportscale.value,
+                                                      maxPixels = 1e11)
+            gdexport.start()
+    except Exception as e:
+        with w_out:
+            print('Error: %s'%e)        
+            
+w_export_s2.on_click(on_export_s2_button_clicked)                     
                           
 def run():
     global m,center
