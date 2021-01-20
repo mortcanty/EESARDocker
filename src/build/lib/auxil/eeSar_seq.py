@@ -817,7 +817,7 @@ def on_export_atsf_button_clicked(b):
             print('Exporting last image to Drive')
             gdexport4 = ee.batch.Export.image.toDrive(ee.Image(img_last),
                                                       description='driveExportTask_last', 
-                                                      folder = 'EarthEngineImages',
+                                                      folder = 'gee',
                                                       fileNamePrefix = timestamplist1[-1],
                                                       crs = archive_crs,
                                                       scale = w_exportscale.value,
