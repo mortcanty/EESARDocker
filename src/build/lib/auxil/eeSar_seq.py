@@ -823,23 +823,22 @@ def on_export_atsf_button_clicked(b):
                                                       scale = w_exportscale.value,
                                                       maxPixels = 1e10)
             gdexport4.start()   
-#          additionally export every kth ATSF filtered image to drive            
-            print('Exporting ATSF series to Drive ...')
-            k = 5
-            for i in range(0,count,k):
-                if i<10:
-                    pad = '0'
-                else:
-                    pad = ''
-                image = ee.Image(avimgs.get(i)).clip(poly)
-                gdexport5 = ee.batch.Export.image.toDrive(image,
-                                                          description='driveExportTask_series_'+pad+str(i), 
-                                                          folder = 'gee',
-                                                          fileNamePrefix = timestamplist1[i],
-                                                          crs = archive_crs,
-                                                          scale = w_exportscale.value,
-                                                          maxPixels = 1e10)
-#              uncomment  to start export                
+# #          additionally export every kth ATSF filtered image to drive            
+#             print('Exporting ATSF series to Drive ...')
+#             k = 5
+#             for i in range(0,count,k):
+#                 if i<10:
+#                     pad = '0'
+#                 else:
+#                     pad = ''
+#                 image = ee.Image(avimgs.get(i)).clip(poly)
+#                 gdexport5 = ee.batch.Export.image.toDrive(image,
+#                                                           description='driveExportTask_series_'+pad+str(i), 
+#                                                           folder = 'gee',
+#                                                           fileNamePrefix = timestamplist1[i],
+#                                                           crs = archive_crs,
+#                                                           scale = w_exportscale.value,
+#                                                           maxPixels = 1e10)     
 #                gdexport5.start()                       
                                 
     except Exception as e:
@@ -849,12 +848,12 @@ def on_export_atsf_button_clicked(b):
 w_export_atsf.on_click(on_export_atsf_button_clicked)       
 
 def on_export_s2_button_clicked(b):
-#  export full s2 image   
+#  export clipped s2 image   
     try:           
         with w_out:       
             w_out.clear_output()     
             print('Exporting s2 image (optical bands B2, B3, B4 only) to Drive')            
-            gdexport = ee.batch.Export.image.toDrive(s2_image,
+            gdexport = ee.batch.Export.image.toDrive(s2_image.clip(poly),
                                                       description='driveExportTask_s2', 
                                                       folder = 'gee',
                                                       fileNamePrefix = 's2_%s_optical'%timestamps2,

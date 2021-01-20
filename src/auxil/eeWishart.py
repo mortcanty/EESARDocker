@@ -37,7 +37,7 @@ def log_det(imList,j):
     im = ee.Image(ee.List(imList).get(j.subtract(1)))
     return ee.Image(det(im)).log()
     
-def pv(imList,median,j,enl):
+def pv(imList,j,enl):
     ''' calculate -2log(R_ell,j) and return it and the P-value'''
     imList = ee.List(imList)
     p2 = ee.Image(imList.get(0)).bandNames().length()
@@ -81,20 +81,19 @@ def pv(imList,median,j,enl):
                  .add(chi2cdf(Zj.multiply(rhoj),f.add(4)).multiply(omega2j))
     PV = ee.Image.constant(1.0).subtract(P)
 #  3x3 median filter    
-    return (ee.Algorithms.If(median, PV.focal_median(), PV), Zj)    
+    return (PV, Zj)    
 
 def js_iter(current,prev):
     j = ee.Number(current)
     prev = ee.Dictionary(prev)
-    median = prev.get('median')
     enl = ee.Number(prev.get('enl'))
     imList = prev.get('imList')
     pvs = ee.List(prev.get('pvs'))
     Z = ee.Image(prev.get('Z')) 
-    pval,Zj = pv(imList,median,j,enl)  
+    pval,Zj = pv(imList,j,enl)  
 #  Z = sum_j Zj = -2lnQ_ell  
     Z = Z.add(Zj)
-    return ee.Dictionary({'median':median,'imList':imList,'enl':enl,'pvs':pvs.add(pval),'Z':Z})   
+    return ee.Dictionary({'imList':imList,'enl':enl,'pvs':pvs.add(pval),'Z':Z})   
 
 def ells_iter(current,prev):
     ell = ee.Number(current)
@@ -108,7 +107,7 @@ def ells_iter(current,prev):
     p2 = ee.Image(imList.get(0)).bandNames().length()
     imList_ell = imList.slice(ell.subtract(1))
     js = ee.List.sequence(2,k.subtract(ell).add(1))
-    first = ee.Dictionary({'median':median,'imList':imList_ell,'enl':enl,'pvs':ee.List([]),'Z':ee.Image.constant(0.0)})
+    first = ee.Dictionary({'imList':imList_ell,'enl':enl,'pvs':ee.List([]),'Z':ee.Image.constant(0.0)})
     result = ee.Dictionary(js.iterate(js_iter,first))
 #  list of P-values for R_ell,j, j = ell+1 ... k    
     pvs = ee.List(result.get('pvs'))
