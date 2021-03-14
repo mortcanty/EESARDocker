@@ -293,16 +293,16 @@ class DWTArray(object):
             m = 2*self.lines
             n = 2*self.samples         
         else:
-            m = self.lines/2**(self.num_iter-1)
-            n = self.samples/2**(self.num_iter-1)
+            m = self.lines//2**(self.num_iter-1)
+            n = self.samples//2**(self.num_iter-1)
         if quadrant == 0:
-            f = self.data[:m/2,:n/2]
+            f = self.data[:m//2,:n//2]
         elif quadrant == 1:
-            f = self.data[:m/2,n/2:n]
+            f = self.data[:m//2,n//2:n]
         elif quadrant == 2:
-            f = self.data[m/2:m,:n/2]
+            f = self.data[m//2:m,:n//2]
         else:
-            f = self.data[m/2:m,n/2:n]
+            f = self.data[m//2:m,n//2:n]
         if float: 
             return f
         else:   
@@ -313,24 +313,24 @@ class DWTArray(object):
     def put_quadrant(self,f1,quadrant):
         if not (quadrant in range(4)) or (self.num_iter==0):
             return 0      
-        m = self.lines/2**(self.num_iter-1)
-        n = self.samples/2**(self.num_iter-1)
+        m = self.lines//2**(self.num_iter-1)
+        n = self.samples//2**(self.num_iter-1)
         f0 = self.data
         if quadrant == 0:
-            f0[:m/2,:n/2] = f1
+            f0[:m//2,:n//2] = f1
         elif quadrant == 1:
-            f0[:m/2,n/2:n] = f1      
+            f0[:m//2,n//2:n] = f1      
         elif quadrant == 2:
-            f0[m/2:m,:n/2] = f1
+            f0[m//2:m,:n//2] = f1
         else:
-            f0[m/2:m,n/2:m] = f1             
+            f0[m//2:m,n//2:m] = f1             
         return 1     
           
     def normalize(self,a,b): 
 #      normalize wavelet coefficients at all levels        
         for c in range(1,self.num_iter+1):
-            m = self.lines/(2**c)
-            n = self.samples/(2**c) 
+            m = self.lines//(2**c)
+            n = self.samples//(2**c) 
             self.data[:m,n:2*n]    = a[0]*self.data[:m,n:2*n]+b[0]                            
             self.data[m:2*m,:n]    = a[1]*self.data[m:2*n,:n]+b[1]
             self.data[m:2*m,n:2*n] = a[2]*self.data[m:2*n,n:2*n]+b[2]
@@ -340,18 +340,18 @@ class DWTArray(object):
         if self.num_iter == self.max_iter:
             return 0
 #      get upper left quadrant       
-        m = self.lines/2**self.num_iter
-        n = self.samples/2**self.num_iter       
+        m = self.lines//2**self.num_iter
+        n = self.samples//2**self.num_iter       
         f0 = self.data[:m,:n]  
 #      temporary arrays
-        f1 = np.zeros((m/2,n)) 
-        g1 = np.zeros((m/2,n))
-        ff1 = np.zeros((m/2,n/2))
-        fg1 = np.zeros((m/2,n/2))
-        gf1 = np.zeros((m/2,n/2))
-        gg1 = np.zeros((m/2,n/2))
+        f1 = np.zeros((m//2,n)) 
+        g1 = np.zeros((m//2,n))
+        ff1 = np.zeros((m//2,n//2))
+        fg1 = np.zeros((m//2,n//2))
+        gf1 = np.zeros((m//2,n//2))
+        gg1 = np.zeros((m//2,n//2))
 #      filter columns and downsample        
-        ds = np.asarray(range(m/2))*2+1
+        ds = np.asarray(range(m//2))*2+1
         for i in range(n):
             temp = np.convolve(f0[:,i].ravel(),\
                                        self.H,'same')
@@ -360,8 +360,8 @@ class DWTArray(object):
                                        self.G,'same')
             g1[:,i] = temp[ds]               
 #      filter rows and downsample
-        ds = np.asarray(range(n/2))*2+1
-        for i in range(m/2):
+        ds = np.asarray(range(n//2))*2+1
+        for i in range(m//2):
             temp = np.convolve(f1[i,:],self.H,'same')
             ff1[i,:] = temp[ds]
             temp = np.convolve(f1[i,:],self.G,'same')
@@ -370,38 +370,38 @@ class DWTArray(object):
             gf1[i,:] = temp[ds]                      
             temp = np.convolve(g1[i,:],self.G,'same')
             gg1[i,:] = temp[ds]        
-        f0[:m/2,:n/2] = ff1
-        f0[:m/2,n/2:] = fg1
-        f0[m/2:,:n/2] = gf1
-        f0[m/2:,n/2:] = gg1
+        f0[:m//2,:n//2] = ff1
+        f0[:m//2,n//2:] = fg1
+        f0[m//2:,:n//2] = gf1
+        f0[m//2:,n//2:] = gg1
         self.data[:m,:n] = f0       
         self.num_iter = self.num_iter+1        
             
     def invert(self):
         H = self.H[::-1]   
         G = self.G[::-1]
-        m = self.lines/2**(self.num_iter-1)
-        n = self.samples/2**(self.num_iter-1)
+        m = self.lines//2**(self.num_iter-1)
+        n = self.samples//2**(self.num_iter-1)
 #      get upper left quadrant      
         f0 = self.data[:m,:n]     
-        ff1 = f0[:m/2,:n/2]
-        fg1 = f0[:m/2,n/2:] 
-        gf1 = f0[m/2:,:n/2]
-        gg1 = f0[m/2:,n/2:]
-        f1 = np.zeros((m/2,n))
-        g1 = np.zeros((m/2,n))
+        ff1 = f0[:m//2,:n//2]
+        fg1 = f0[:m//2,n//2:] 
+        gf1 = f0[m//2:,:n//2]
+        gg1 = f0[m//2:,n//2:]
+        f1 = np.zeros((m//2,n))
+        g1 = np.zeros((m//2,n))
 #      upsample and filter rows
-        for i in range(m/2):            
-            a = np.ravel(np.transpose(np.vstack((ff1[i,:],np.zeros(n/2)))))
-            b = np.ravel(np.transpose(np.vstack((fg1[i,:],np.zeros(n/2)))))
+        for i in range(m//2):            
+            a = np.ravel(np.transpose(np.vstack((ff1[i,:],np.zeros(n//2)))))
+            b = np.ravel(np.transpose(np.vstack((fg1[i,:],np.zeros(n//2)))))
             f1[i,:] = np.convolve(a,H,'same') + np.convolve(b,G,'same')
-            a = np.ravel(np.transpose(np.vstack((gf1[i,:],np.zeros(n/2)))))
-            b = np.ravel(np.transpose(np.vstack((gg1[i,:],np.zeros(n/2)))))            
+            a = np.ravel(np.transpose(np.vstack((gf1[i,:],np.zeros(n//2)))))
+            b = np.ravel(np.transpose(np.vstack((gg1[i,:],np.zeros(n//2)))))            
             g1[i,:] = np.convolve(a,H,'same') + np.convolve(b,G,'same')        
 #      upsample and filter columns
         for i in range(n):
-            a = np.ravel(np.transpose(np.vstack((f1[:,i],np.zeros(m/2)))))
-            b = np.ravel(np.transpose(np.vstack((g1[:,i],np.zeros(m/2)))))          
+            a = np.ravel(np.transpose(np.vstack((f1[:,i],np.zeros(m//2)))))
+            b = np.ravel(np.transpose(np.vstack((g1[:,i],np.zeros(m//2)))))          
             f0[:,i] = 4*(np.convolve(a,H,'same') + np.convolve(b,G,'same'))
         self.data[:m,:n] = f0                                   
         self.num_iter = self.num_iter-1    

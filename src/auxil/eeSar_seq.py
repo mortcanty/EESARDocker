@@ -232,6 +232,13 @@ w_out = widgets.Output(
     layout={'border': '1px solid black'}
 )
 
+w_drive = widgets.Text(
+    value='<path>',
+    placeholder=' ',
+    description='',
+    disabled=False
+)
+
 w_goto = widgets.Button(description='GoTo',disabled=False)
 w_export_atsf = widgets.Button(description='ATSFtoDrive',disabled=True)
 w_export_s2 = widgets.Button(description='S2toDrive',disabled=True)
@@ -248,11 +255,12 @@ w_export_drv = widgets.Button(description='ChangesToDrive',disabled=True)
 w_dates = widgets.HBox([w_relativeorbitnumber,w_startdate,w_enddate,w_stride])
 w_change = widgets.HBox([w_changemap,w_bmap])
 w_orbit = widgets.HBox([w_orbitpass,w_platform,w_change,w_opac])
-w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_exportdrivename,w_export_atsf,w_export_s2])
 w_signif = widgets.HBox([w_significance,w_S2,w_Q,w_median,w_exportscale],layout = widgets.Layout(width='99%'))
-w_run = widgets.HBox([w_collect,w_preview,w_review,w_plot,w_clearpoly,w_ENL])
+w_run = widgets.HBox([w_collect,w_preview,w_plot,w_clearpoly,w_ENL,w_review])
 w_reset = widgets.Button(description='Reset',disabled=False)
 w_output = widgets.HBox([w_reset,w_out])
+w_exp = widgets.HBox([w_export_ass,w_exportassetsname,w_export_drv,w_drive,w_export_atsf,w_export_s2])
+
 
 box = widgets.VBox([w_output,w_coll,w_dates,w_orbit,w_signif,w_run,w_exp])
 
@@ -325,6 +333,7 @@ def on_clearpoly_button_clicked(b):
     w_ENL.disabled = True      
     
 w_clearpoly.on_click(on_clearpoly_button_clicked)    
+ 
 
 def on_ENL_button_clicked(b):
     with w_out:
@@ -358,15 +367,15 @@ def on_collect_button_clicked(b):
             if (w_collection.value == 'COPERNICUS/S1_GRD') or (w_collection.value == ''): 
                 w_out.clear_output()
                 print('running on GEE archive COPERNICUS/S1_GRD (please wait for raster overlay) ...')
- #               coords = ee.List(poly.bounds().coordinates().get(0))
-                collection = getS1collection()
+#               coords = ee.List(poly.bounds().coordinates().get(0))
+                collection = getS1collection()              
                 if w_relativeorbitnumber.value > 0:
                     collection = collection.filter(ee.Filter.eq('relativeOrbitNumber_start', int(w_relativeorbitnumber.value)))   
                 if w_platform.value != 'Both':
                     collection = collection.filter(ee.Filter.eq('platform_number', w_platform.value))         
                 collection = collection.sort('system:time_start') 
-                acquisition_times = ee.List(collection.aggregate_array('system:time_start')).getInfo()
-                count = len(acquisition_times) 
+                acquisition_times = ee.List(collection.aggregate_array('system:time_start')).getInfo()              
+                count = len(acquisition_times)      
                 if count<2:
                     raise ValueError('Less than 2 images found')
                 timestamplist = []
@@ -720,7 +729,7 @@ w_export_ass.on_click(on_export_ass_button_clicked)
 def on_export_drv_button_clicked(b):
     try:
         cmaps = ee.Image.cat(cmap,smap,fmap,bmap).rename(['cmap','smap','fmap']+timestamplist1[1:])  
-        fileNamePrefix=w_exportdrivename.value.replace('/','-')            
+        fileNamePrefix=w_drive.value.replace('/','-')            
         gdexport = ee.batch.Export.image.toDrive(cmaps.byte().clip(poly),
                                     description='driveExportTask', 
                                     folder = 'gee',
@@ -735,7 +744,7 @@ def on_export_drv_button_clicked(b):
             times = [timestamp[1:9] for timestamp in timestamplist1]
             metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
                                 'Collection: '+w_collection.value,
-                                'Drive export name: '+w_exportdrivename.value,  
+                                'Drive export name: '+w_drive.value,  
                                 'ENL: '+str(w_enl.value),
                                 'Export scale (m): '+str(w_exportscale.value),
                                 'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),
@@ -752,7 +761,7 @@ def on_export_drv_button_clicked(b):
         else:
             metadata = ee.List(['SEQUENTIAL OMNIBUS: '+time.asctime(),  
                                 'Collection: '+w_collection.value,
-                                'Drive export name: '+w_exportdrivename.value,  
+                                'Drive export name: '+w_drive.value,  
                                 'ENL: '+str(w_enl.value),  
                                 'Export scale (m): '+str(w_exportscale.value),
                                 'Nominal scale (m): '+str(cmap.projection().nominalScale().getInfo()),

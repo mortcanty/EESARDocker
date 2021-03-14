@@ -47,6 +47,7 @@ RUN     rm -rf auxil-1.0
 RUN     rm auxil-1.0.tar.gz
 
 COPY    interface.ipynb /home/interface.ipynb
+COPY    dynearthnet.ipynb /home/dynearthnet.ipynb
 # COPY    notebooks/s1class.ipynb /home/s1class.ipynb
 
 ADD     scripts /home/scripts
