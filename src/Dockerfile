@@ -46,6 +46,8 @@ WORKDIR /home
 RUN     rm -rf auxil-1.0
 RUN     rm auxil-1.0.tar.gz
 
+ENV     REFRESHED_AT 2020-03-16
+
 COPY    interface.ipynb /home/interface.ipynb
 COPY    dynearthnet.ipynb /home/dynearthnet.ipynb
 # COPY    notebooks/s1class.ipynb /home/s1class.ipynb
