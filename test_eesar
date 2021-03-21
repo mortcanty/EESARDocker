@@ -1,5 +1,5 @@
 #!/bin/bash
-source ~/python/EESARDocker/venv3/bin/activate
+source ~/venv38/bin/activate
 cd ~/python/EESARDocker/src
 python setup.py install
 python setup.py sdist

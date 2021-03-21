@@ -18,7 +18,7 @@ future==0.18.0
 gast==0.2.2
 geographiclib==1.50
 geojson==2.5.0
-geomet==0.2.1
+geomet==0.3.0
 geopy==1.20.0
 google-api-core==1.14.3
 google-api-python-client==1.7.11
@@ -56,7 +56,7 @@ Keras-Preprocessing==1.1.0
 kiwisolver==1.1.0
 Markdown==3.1.1
 MarkupSafe==1.1.1
-matplotlib==3.0.3
+matplotlib==3.3.4
 mistune==0.8.4
 more-itertools==7.2.0
 nbconvert==5.6.0
@@ -65,7 +65,7 @@ notebook>=6.1.5
 numpy==1.17.2
 oauth2client==4.1.3
 opt-einsum==3.1.0
-pandas==0.25.1
+pandas==1.2.3
 pandocfilters==1.4.2
 parso==0.5.1
 pexpect==4.7.0
@@ -86,7 +86,7 @@ pyzmq==18.1.0
 qtconsole==4.5.5
 requests==2.22.0
 rsa==4.0
-scipy==1.3.1
+scipy==1.6.1
 Send2Trash==1.5.0
 sentinelsat==0.13
 six==1.12.0

@@ -7,13 +7,146 @@
 #
 #  Copyright (c) 2018, Mort Canty
 
-import auxil.auxil1 as auxil
-import os, sys, time, getopt
+#import auxil.auxil1 as auxil
+import os, sys, time, getopt, math
 import numpy as np
 import scipy.ndimage.interpolation as ndi
 import scipy.ndimage.filters as ndf
 from osgeo import gdal
 from osgeo.gdalconst import GA_ReadOnly,GDT_Byte
+
+class DWTArray(object):
+    '''Partial DWT representation of image band
+       which is input as 2-D uint8 array'''
+    def __init__(self,band,samples,lines,itr=0):
+# Daubechies D4 wavelet       
+        self.H = np.asarray([(1-math.sqrt(3))/8,(3-math.sqrt(3))/8,(3+math.sqrt(3))/8,(1+math.sqrt(3))/8])   
+        self.G = np.asarray([-(1+math.sqrt(3))/8,(3+math.sqrt(3))/8,-(3-math.sqrt(3))/8,(1-math.sqrt(3))/8])
+        self.num_iter = itr        
+        self.max_iter = 3
+# ignore edges if band dimension is not divisible by 2^max_iter        
+        r = 2**self.max_iter
+        self.samples = r*(samples//r)
+        self.lines = r*(lines//r)  
+        self.data = np.asarray(band[:self.lines,:self.samples],np.float32) 
+        
+    def get_quadrant(self,quadrant,float=False):
+        if self.num_iter==0:
+            m = 2*self.lines
+            n = 2*self.samples         
+        else:
+            m = self.lines//2**(self.num_iter-1)
+            n = self.samples//2**(self.num_iter-1)
+        if quadrant == 0:
+            f = self.data[:m//2,:n//2]
+        elif quadrant == 1:
+            f = self.data[:m//2,n//2:n]
+        elif quadrant == 2:
+            f = self.data[m//2:m,:n//2]
+        else:
+            f = self.data[m//2:m,n//2:n]
+        if float: 
+            return f
+        else:   
+            f = np.where(f<0,0,f) 
+            f = np.where(f>255,255,f)   
+            return np.asarray(f,np.uint8)    
+    
+    def put_quadrant(self,f1,quadrant):
+        if not (quadrant in range(4)) or (self.num_iter==0):
+            return 0      
+        m = self.lines//2**(self.num_iter-1)
+        n = self.samples//2**(self.num_iter-1)
+        f0 = self.data
+        if quadrant == 0:
+            f0[:m//2,:n//2] = f1
+        elif quadrant == 1:
+            f0[:m//2,n//2:n] = f1      
+        elif quadrant == 2:
+            f0[m//2:m,:n//2] = f1
+        else:
+            f0[m//2:m,n//2:m] = f1             
+        return 1     
+          
+    def normalize(self,a,b): 
+#      normalize wavelet coefficients at all levels        
+        for c in range(1,self.num_iter+1):
+            m = self.lines//(2**c)
+            n = self.samples//(2**c) 
+            self.data[:m,n:2*n]    = a[0]*self.data[:m,n:2*n]+b[0]                            
+            self.data[m:2*m,:n]    = a[1]*self.data[m:2*n,:n]+b[1]
+            self.data[m:2*m,n:2*n] = a[2]*self.data[m:2*n,n:2*n]+b[2]
+            
+    def filter(self):
+#      single application of filter bank          
+        if self.num_iter == self.max_iter:
+            return 0
+#      get upper left quadrant       
+        m = self.lines//2**self.num_iter
+        n = self.samples//2**self.num_iter       
+        f0 = self.data[:m,:n]  
+#      temporary arrays
+        f1 = np.zeros((m//2,n)) 
+        g1 = np.zeros((m//2,n))
+        ff1 = np.zeros((m//2,n//2))
+        fg1 = np.zeros((m//2,n//2))
+        gf1 = np.zeros((m//2,n//2))
+        gg1 = np.zeros((m//2,n//2))
+#      filter columns and downsample        
+        ds = np.asarray(range(m//2))*2+1
+        for i in range(n):
+            temp = np.convolve(f0[:,i].ravel(),\
+                                       self.H,'same')
+            f1[:,i] = temp[ds]
+            temp = np.convolve(f0[:,i].ravel(),\
+                                       self.G,'same')
+            g1[:,i] = temp[ds]               
+#      filter rows and downsample
+        ds = np.asarray(range(n//2))*2+1
+        for i in range(m//2):
+            temp = np.convolve(f1[i,:],self.H,'same')
+            ff1[i,:] = temp[ds]
+            temp = np.convolve(f1[i,:],self.G,'same')
+            fg1[i,:] = temp[ds]  
+            temp = np.convolve(g1[i,:],self.H,'same')
+            gf1[i,:] = temp[ds]                      
+            temp = np.convolve(g1[i,:],self.G,'same')
+            gg1[i,:] = temp[ds]        
+        f0[:m//2,:n//2] = ff1
+        f0[:m//2,n//2:] = fg1
+        f0[m//2:,:n//2] = gf1
+        f0[m//2:,n//2:] = gg1
+        self.data[:m,:n] = f0       
+        self.num_iter = self.num_iter+1        
+            
+    def invert(self):
+        H = self.H[::-1]   
+        G = self.G[::-1]
+        m = self.lines//2**(self.num_iter-1)
+        n = self.samples//2**(self.num_iter-1)
+#      get upper left quadrant      
+        f0 = self.data[:m,:n]     
+        ff1 = f0[:m//2,:n//2]
+        fg1 = f0[:m//2,n//2:] 
+        gf1 = f0[m//2:,:n//2]
+        gg1 = f0[m//2:,n//2:]
+        f1 = np.zeros((m//2,n))
+        g1 = np.zeros((m//2,n))
+#      upsample and filter rows
+        for i in range(m//2):            
+            a = np.ravel(np.transpose(np.vstack((ff1[i,:],np.zeros(n//2)))))
+            b = np.ravel(np.transpose(np.vstack((fg1[i,:],np.zeros(n//2)))))
+            f1[i,:] = np.convolve(a,H,'same') + np.convolve(b,G,'same')
+            a = np.ravel(np.transpose(np.vstack((gf1[i,:],np.zeros(n//2)))))
+            b = np.ravel(np.transpose(np.vstack((gg1[i,:],np.zeros(n//2)))))            
+            g1[i,:] = np.convolve(a,H,'same') + np.convolve(b,G,'same')        
+#      upsample and filter columns
+        for i in range(n):
+            a = np.ravel(np.transpose(np.vstack((f1[:,i],np.zeros(m//2)))))
+            b = np.ravel(np.transpose(np.vstack((g1[:,i],np.zeros(m//2)))))          
+            f0[:,i] = 4*(np.convolve(a,H,'same') + np.convolve(b,G,'same'))
+        self.data[:m,:n] = f0                                   
+        self.num_iter = self.num_iter-1    
 
 def em(G,U,T0,beta,rows,cols,unfrozen=None):
     '''Gaussian mixture unsupervised classification'''
@@ -205,7 +338,7 @@ and the class probabilities output file is named
     DWTbands = []               
     for b in pos:
         band = inDataset.GetRasterBand(b)
-        DWTband = auxil.DWTArray(band.ReadAsArray(x0,y0,cols,rows).astype(float),cols,rows)
+        DWTband = DWTArray(band.ReadAsArray(x0,y0,cols,rows).astype(float),cols,rows)
         for i in range(max_scale):
             DWTband.filter()
         DWTbands.append(DWTband)

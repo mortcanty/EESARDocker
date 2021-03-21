@@ -5,6 +5,8 @@ auxil/auxil1.py
 auxil/congrid.py
 auxil/dnn.py
 auxil/eeDownload.py
+auxil/eeMad.py
+auxil/eeMad_run.py
 auxil/eeRL.py
 auxil/eeSar_seq.py
 auxil/eeSar_seq_old.py
