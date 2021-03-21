@@ -1,11 +1,11 @@
 # Dockerfile with Jupyter widget interface for 
 # Sequential SAR on Earth Engine
  
-FROM     debian:latest
+FROM     debian:stretch
 
 MAINTAINER Mort Canty "mort.canty@gmail.com"
 
-ENV     REFRESHED_AT 2020-01-16
+ENV     REFRESHED_AT 2021-03-21
  
 RUN apt-get update && apt-get install -y \
     python3 \
@@ -50,7 +50,6 @@ ENV     REFRESHED_AT 2020-03-16
 
 COPY    interface.ipynb /home/interface.ipynb
 COPY    dynearthnet.ipynb /home/dynearthnet.ipynb
-# COPY    notebooks/s1class.ipynb /home/s1class.ipynb
 
 ADD     scripts /home/scripts
 
