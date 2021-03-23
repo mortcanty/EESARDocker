@@ -556,6 +556,7 @@ def on_review_button_clicked(b):
     watermask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)  
     with w_out:  
         try:       
+            tst = ee.Image(w_exportassetsname.value).getInfo()
             asset = ee.Image(w_exportassetsname.value)
             poly = ee.Geometry.Polygon(ee.Geometry(asset.get('system:footprint')).coordinates())
             center = poly.centroid().coordinates().getInfo()

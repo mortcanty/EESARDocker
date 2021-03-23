@@ -46,6 +46,9 @@ WORKDIR /home
 RUN     rm -rf auxil-1.0
 RUN     rm auxil-1.0.tar.gz
 
+RUN     pip3 install tensorflow
+RUN     pip3 install --upgrade tensorflow-probability==0.11.1
+
 ENV     REFRESHED_AT 2020-03-16
 
 COPY    interface.ipynb /home/interface.ipynb
