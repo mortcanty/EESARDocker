@@ -59,7 +59,7 @@ ptyprocess==0.6.0
 pyasn1==0.4.7
 pyasn1-modules==0.2.7
 pycrypto==2.6.1
-Pygments==2.2.0
+Pygments==2.7.4
 pygobject==3.22.0
 pyparsing==2.4.2
 pyrsistent==0.15.4
