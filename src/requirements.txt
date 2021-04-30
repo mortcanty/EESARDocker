@@ -85,7 +85,7 @@ pytz==2019.3
 pyzmq==18.1.0
 qtconsole==4.5.5
 requests==2.22.0
-rsa==4.0
+rsa==4.7
 scipy
 Send2Trash==1.5.0
 sentinelsat==0.13
