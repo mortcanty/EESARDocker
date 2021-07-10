@@ -21,7 +21,7 @@ from ipyleaflet import (Map,DrawControl,TileLayer,
 from auxil.eeWishart import omnibus
 from auxil.eeRL import refinedLee
 from auxil.ee_enlml import enl
-from geopy.geocoders import photon
+from geopy.geocoders import photon, Nominatim
 
 ee.Initialize()
 
@@ -34,7 +34,7 @@ def update_figure(fig,line,profile):
     line.x = range(1,count)
     line.y = profile
 
-geolocator = photon.Photon(timeout=10)
+geolocator = Nominatim(timeout=10)
 
 def get_incidence_angle(image):
     ''' grab the mean incidence angle '''
@@ -555,8 +555,10 @@ def on_review_button_clicked(b):
     global poly
     watermask = ee.Image('UMD/hansen/global_forest_change_2015').select('datamask').eq(1)  
     with w_out:  
-        try:       
+        try: 
+#          test for existence of asset                  
             tst = ee.Image(w_exportassetsname.value).getInfo()
+#          ---------------------------            
             asset = ee.Image(w_exportassetsname.value)
             poly = ee.Geometry.Polygon(ee.Geometry(asset.get('system:footprint')).coordinates())
             center = poly.centroid().coordinates().getInfo()

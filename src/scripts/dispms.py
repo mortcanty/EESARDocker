@@ -8,11 +8,11 @@
 #
 # Copyright (c) 2018 Mort Canty
 
-import sys, getopt, os
+import sys, getopt, os, copy
 from osgeo import gdal
 from osgeo.gdalconst import GA_ReadOnly
 import matplotlib.pyplot as plt 
-from matplotlib import cm
+import matplotlib as mpl
 import numpy as np
 import auxil.auxil1 as auxil
 
@@ -28,7 +28,7 @@ def make_image(redband,greenband,blueband,rows,cols,enhance,rng=None):
         i = 0
         for tmp in [redband,greenband,blueband]:             
             tmp = tmp.ravel()  
-            X[:,i] = auxil.linstr(tmp,rng)
+            X[:,i] = auxil.linstr(tmp,rng=None)
             i += 1
     elif enhance == 'linear2pc':
         i = 0
@@ -81,7 +81,9 @@ def make_image(redband,greenband,blueband,rows,cols,enhance,rng=None):
             i += 1                           
     return np.reshape(X,(rows,cols,3))/255.
 
-def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,enhance=None,ENHANCE=None,sfn=None,cls=None,CLS=None,alpha=None,labels=None):
+def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,
+           RGB=None,enhance=None,ENHANCE=None,sfn=None,cls=None,CLS=None,
+           alpha=None,labels=None):
     gdal.AllRegister()
     if filename1 == None:        
         filename1 = input('Enter image filename: ')
@@ -210,7 +212,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
                 else:                    
                     ticklabels = list(map(str,range(0,num_classes+1))) 
                 X1[X1 == 0] = np.nan
-                cmap = cm.get_cmap('jet')
+                cmap = copy.copy(mpl.cm.get_cmap("jet"))
                 cmap.set_bad(alpha=0)
                 cmap.set_under('black')    
                 cax = ax.imshow(X1[:,:,0]-0.01,cmap=cmap,alpha=alpha)  
@@ -223,7 +225,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
         else:    
             fig, ax = plt.subplots(1,2,figsize=(20,10))
             if cls:
-                cmap = cm.get_cmap('jet')
+                cmap = copy.copy(mpl.cm.get_cmap("jet"))
                 cmap.set_under('black') 
                 cax = ax[0].imshow(X1[:,:,0]-0.01,cmap=cmap)  
                 cax.set_clim(0.0,1.0)              
@@ -231,7 +233,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
                 ax[0].imshow(X1)             
             ax[0].set_title('%s: %s: %s:  %s\n'%(os.path.basename(filename1),enhance1, str(rgb), str(dims)))           
             if CLS:
-                cmap = cm.get_cmap('jet')
+                cmap = copy.copy(mpl.cm.get_cmap("jet"))
                 cmap.set_under('black')
                 cax = ax[1].imshow(X2[:,:,0]-0.01,cmap=cmap)
                 cax.set_clim(0.01,1.0)                         
@@ -247,7 +249,7 @@ def dispms(filename1=None,filename2=None,dims=None,DIMS=None,rgb=None,RGB=None,e
                 ticklabels = labels
             else:                    
                 ticklabels = list(map(str,range(0,num_classes+1)))  
-            cmap = cm.get_cmap('jet')
+            cmap = copy.copy(mpl.cm.get_cmap("jet"))
             cmap.set_under('black')
             cax = ax.imshow(X1[:,:,0]-0.01,cmap=cmap)  
             cax.set_clim(0.0,1.0)                          

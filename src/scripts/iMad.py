@@ -38,7 +38,7 @@ Options:
 The output MAD variate file is has the same format
 as filename1 and is named
 
-      path/MAD(filebasename1-filebasename2).ext1
+      path/MAD_filebasename1-filebasename2.ext1
       
 where filename1 = path/filebasename1.ext1
       filename2 = path/filebasename2.ext2

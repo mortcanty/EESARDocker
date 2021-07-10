@@ -248,6 +248,7 @@ Options:
   -K  <int>     number of clusters (default 6)
   -M  <int>     maximum scale (default 2)
   -m  <int>     minimum scale (default 0) 
+  -n  <int>     add Gaussian noise to pixel value (default None)
   -t  <float>   initial annealing temperature (default 0.5)
   -s  <float>   spatial mixing factor (default 0.5)  
   -P            generate class probabilities image 
@@ -267,9 +268,10 @@ and the class probabilities output file is named
   -------------------------------------'''%sys.argv[0]   
 
 
-    options, args = getopt.getopt(sys.argv[1:],'hp:d:K:M:m:t:s:P')
+    options, args = getopt.getopt(sys.argv[1:],'hp:d:K:M:m:n:t:s:P')
     pos = None
     dims = None  
+    add_noise = None
     K,max_scale,min_scale,T0,beta,probs = (6,2,0,0.5,0.5,False)        
     for option, value in options:
         if option == '-h':
@@ -285,6 +287,8 @@ and the class probabilities output file is named
             max_scale = eval(value)
         elif option == '-m':
             min_scale = min(eval(value),3)  
+        elif option == '-n':
+            add_noise = eval(value)      
         elif option == '-t':
             T0 = eval(value)
         elif option == '-s':
@@ -338,8 +342,13 @@ and the class probabilities output file is named
     DWTbands = []               
     for b in pos:
         band = inDataset.GetRasterBand(b)
-        DWTband = DWTArray(band.ReadAsArray(x0,y0,cols,rows).astype(float),cols,rows)
-        for i in range(max_scale):
+        tmp = np.nan_to_num(band.ReadAsArray(x0,y0,cols,rows).astype(float))
+#      add noise to zero-valued edge pixels  
+        if add_noise is not None:      
+            rndim = add_noise+np.random.randn(rows,cols)
+            tmp = np.where(tmp==add_noise,rndim,tmp)
+        DWTband = DWTArray(tmp,cols,rows)
+        for _ in range(max_scale):
             DWTband.filter()
         DWTbands.append(DWTband)
     rows,cols = DWTbands[0].get_quadrant(0).shape    

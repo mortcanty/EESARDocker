@@ -21,7 +21,7 @@ from ipyleaflet import (Map,DrawControl,TileLayer,
 from auxil.eeWishart import omnibus
 from auxil.eeRL import refinedLee
 from auxil.ee_enlml import enl
-from geopy.geocoders import photon
+from geopy.geocoders import Nominatim
 
 ee.Initialize()
 
@@ -34,7 +34,7 @@ def update_figure(fig,line,profile):
     line.x = range(1,count)
     line.y = profile
 
-geolocator = photon.Photon(timeout=10)
+geolocator = Nominatim(timeout=10)
 
 def get_incidence_angle(image):
     ''' grab the mean incidence angle '''

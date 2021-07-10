@@ -1,14 +1,13 @@
 import ee
 
-def covarw(image, weights, maxPixels=1e9):
+def covarw(image, weights, scale, maxPixels=1e9):
     '''Return the weighted centered image and its weighted covariance matrix'''  
     geometry = image.geometry()
     bandNames = image.bandNames()
     N = bandNames.length()
-    scale = image.select(0).projection().nominalScale()
     weightsImage = image.multiply(ee.Image.constant(0)).add(weights)
     means = image.addBands(weightsImage) \
-                 .reduceRegion(ee.Reducer.mean().repeat(N).splitWeights(), scale=scale,maxPixels=maxPixels) \
+                 .reduceRegion(ee.Reducer.mean().repeat(N).splitWeights(), scale=scale, maxPixels=maxPixels) \
                  .toArray() \
                  .project([1])
     centered = image.toArray().subtract(means) 
@@ -104,10 +103,10 @@ def radcal(current,prev):
     image = ee.Image(prev.get('image'))
     ncmask = ee.Image(prev.get('ncmask'))
     nbands = ee.Number(prev.get('nbands'))
+    scale = ee.Number(prev.get('scale'))
     rect = ee.Geometry(prev.get('rect'))
     coeffs = ee.List(prev.get('coeffs'))
     normalized = ee.Image(prev.get('normalized'))
-    scale = image.select(0).projection().nominalScale()
 #  orthoregress reference onto target  
     image1 = image.clip(rect).select(k.add(nbands),k).updateMask(ncmask).rename(['x','y'])
     means = image1.reduceRegion(ee.Reducer.mean(), scale=scale, maxPixels=1e9) \
@@ -129,7 +128,7 @@ def radcal(current,prev):
     coeffs = coeffs.add(ee.List([b,a,R]))
 #  normalize kth band in target    
     normalized = normalized.addBands(image.select(k.add(nbands)).multiply(b).add(a))
-    return ee.Dictionary({'image':image,'ncmask':ncmask,'nbands':nbands,'rect':rect,'coeffs':coeffs,'normalized':normalized})    
+    return ee.Dictionary({'image':image,'ncmask':ncmask,'nbands':nbands,'scale':scale,'rect':rect,'coeffs':coeffs,'normalized':normalized})    
 
 def imad(current,prev):
     done =  ee.Number(ee.Dictionary(prev).get('done'))
@@ -143,7 +142,9 @@ def imad1(current,prev):
     region = image.geometry()   
     nBands = image.bandNames().length().divide(2) 
     weights = chi2cdf(chi2,nBands).subtract(1).multiply(-1)
-    centeredImage,covarArray = covarw(image,weights)
+    scale = ee.Number(ee.Dictionary(prev).get('scale'))
+    niter = ee.Number(ee.Dictionary(prev).get('niter'))
+    centeredImage,covarArray = covarw(image,weights,scale)
     bNames = centeredImage.bandNames()
     bNames1 = bNames.slice(0,nBands)
     bNames2 = bNames.slice(nBands)
@@ -198,7 +199,7 @@ def imad1(current,prev):
               .divide(sigma2s) \
               .reduce(ee.Reducer.sum()) \
               .clip(region)                
-    return ee.Dictionary({'done':done,'image':image,'allrhos':allrhos,'chi2':chi2,'MAD':MAD})     
+    return ee.Dictionary({'done':done,'scale':scale,'niter':niter.add(1),'image':image,'allrhos':allrhos,'chi2':chi2,'MAD':MAD})     
     
 if __name__ == '__main__': 
     pass

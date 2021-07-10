@@ -30,9 +30,7 @@ def read_image(fn,dims=None,pos=None):
     k = 0                               
     for b in pos:
         band = inDataset.GetRasterBand(b)
-        tmp = band.ReadAsArray(x0,y0,cols,rows)\
-                              .astype(float).ravel()
-        G[:,k] = tmp - np.mean(tmp)
+        G[:,k] = band.ReadAsArray(x0,y0,cols,rows).astype(float).ravel()
         k += 1      
     return (G,cols,rows,bands,inDataset,x0,y0)
 
@@ -59,7 +57,7 @@ def geneiv(A,B):
     return lambdas, tf.matmul(tf.transpose(Li),V)
 
 def imad(x1,x2,pvs,niter):  
-    ''' IR.MAD algorithm'''
+    '''IR.MAD algorithm'''
     m = tf.shape(x1)[0]
     N = tf.shape(x1)[1]
     x = tf.concat([x1,x2],axis=1)
@@ -117,7 +115,7 @@ Options:
    -p  <list>   spectral subset list e.g. -p [1,2,3,4] 
    -s  <string> TF session e.g. -s grpc://localhost:2222 (defaults to default_session)
 -----------------------------------------------------''' %sys.argv[0]
-    options, args = getopt.getopt(sys.argv[1:],'hi:d:p:s:')
+    options, args = getopt.getopt(sys.argv[1:],'hi:d:p:')
     dims = None 
     pos = None 
     niter = 50
@@ -131,8 +129,6 @@ Options:
             dims = eval(value) 
         elif option == '-p':
             pos = eval(value)
-        elif option == '-s':
-            session = str(value)
             
     if len(args) != 2:
         print('Incorrect number of arguments')
