@@ -34,7 +34,7 @@ def update_figure(fig,line,profile):
     line.x = range(1,count)
     line.y = profile
 
-geolocator = Nominatim(timeout=10)
+geolocator = Nominatim(timeout=10,user_agent='tutorial-pt-4.ipynb')
 
 def get_incidence_angle(image):
     ''' grab the mean incidence angle '''

@@ -1,11 +1,11 @@
 # Dockerfile with Jupyter widget interface for 
-# Sequential SAR on Earth Engine
+# SAR forest mapping
  
-FROM     debian:stretch
+FROM     debian:buster
 
 MAINTAINER Mort Canty "mort.canty@gmail.com"
 
-ENV     REFRESHED_AT 2021-03-21
+ENV     REFRESHED_AT 2021-05-06
  
 RUN apt-get update && apt-get install -y \
     python3 \
@@ -20,14 +20,6 @@ RUN apt-get update && apt-get install -y \
     libgdal-dev \
     python3-gdal \
     python3-pip   
-    
-ENV     REFRESHED_AT 2022-06-24    
-    
-RUN     pip3 install --upgrade pip   
-
-COPY    requirements.txt /home 
-RUN     pip3 install -r /home/requirements.txt
-
 
 # jupyter notebook with leaflet
 RUN     pip3 install --upgrade pip
@@ -36,8 +28,6 @@ RUN     pip3 install scipy
 RUN     pip3 install jupyter
 RUN     pip3 install ipyleaflet
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
-
-
 
 RUN     pip3 install -U cython
 
@@ -52,16 +42,13 @@ RUN     pip3 install --upgrade setuptools && \
         pip3 install --upgrade oauth2client && \
         pip3 install pyCrypto && \
         apt-get install -y libssl-dev
-        
-RUN     pip3 install earthengine-api      
+RUN     pip3 install earthengine-api
 RUN     pip3 install earthengine-api --upgrade
+
 
 #RUN     pip3 install --upgrade --no-cache-dir setuptools==57.0.0
 
 #RUN     pip3 install --global-option=build_ext --global-option="-I/usr/include/gdal" GDAL==2.1.3
-
-
-RUN     pip3 install --global-option=build_ext --global-option="-I/usr/include/gdal" GDAL==2.1.3
 
 RUN     jupyter nbextension enable --py --sys-prefix ipyleaflet
 
@@ -72,22 +59,30 @@ RUN     gcc -shared -Wall -g -o libprov_means.so -fPIC prov_means.c
 RUN     mv libprov_means.so /usr/lib/
 RUN     rm prov_means.c
 
+ENV     REFRESHED_AT 2021-05-06
 # install auxil
-COPY    dist/auxil-1.0.tar.gz /home/auxil-1.0.tar.gz
+copy    setup.py  /home/setup.py
+ADD     auxil /home/auxil
 WORKDIR /home
-RUN     tar -xzvf auxil-1.0.tar.gz
-WORKDIR /home/auxil-1.0
 RUN     python3 setup.py install  
-WORKDIR /home
-RUN     rm -rf auxil-1.0
-RUN     rm auxil-1.0.tar.gz
 
-ENV     REFRESHED_AT 2022-06-23
+# install auxil
+#COPY    dist/auxil-1.0.tar.gz /home/auxil-1.0.tar.gz
+#WORKDIR /home
+#RUN     tar -xzvf auxil-1.0.tar.gz
+#WORKDIR /home/auxil-1.0
+#RUN     python3 setup.py install  
+#WORKDIR /home
+#RUN     rm -rf auxil-1.0
+#RUN     rm auxil-1.0.tar.gz
 
 COPY    interface.ipynb /home/interface.ipynb
 COPY    dynearthnet.ipynb /home/dynearthnet.ipynb
 
 ADD     scripts /home/scripts
+
+RUN     pip3 install geopy
+
 
 # ipython notebook startup script
 COPY    notebook.sh /

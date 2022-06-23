@@ -21,7 +21,7 @@ from ipyleaflet import (Map,DrawControl,TileLayer,
 from auxil.eeWishart import omnibus
 from auxil.eeRL import refinedLee
 from auxil.ee_enlml import enl
-from geopy.geocoders import photon, Nominatim
+from geopy.geocoders import Nominatim
 
 ee.Initialize()
 
